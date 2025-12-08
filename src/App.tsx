@@ -384,7 +384,7 @@ export default function PostBills() {
   }, [slug, days]);
 
   useEffect(() => {
-    scrollTo(todayKey);
+    scrollTo(todayKey, true);
   }, []);
 
   useEffect(() => {
@@ -444,20 +444,20 @@ export default function PostBills() {
   const prevFilters = useRef({ hideEmpty, showFavOnly });
   useEffect(() => {
     const was = prevFilters.current;
-    if (was.hideEmpty && !hideEmpty) setTimeout(() => scrollTo(todayKey), 0);
+    if (was.hideEmpty && !hideEmpty) setTimeout(() => scrollTo(todayKey, true), 0);
     if (was.showFavOnly && !showFavOnly)
-      setTimeout(() => scrollTo(todayKey), 0);
+      setTimeout(() => scrollTo(todayKey, true), 0);
     prevFilters.current = { hideEmpty, showFavOnly };
   }, [hideEmpty, showFavOnly, todayKey]);
 
   const isPast = (k: string) => k < todayKey;
   const isToday = (k: string) => k === todayKey;
 
-  const scrollTo = (k: string) => {
+  const scrollTo = (k: string, center = false) => {
     const el = columnRefs.current[k];
     el?.scrollIntoView({
       behavior: 'smooth',
-      inline: 'start',
+      inline: center ? 'center' : 'start',
       block: 'nearest',
     });
   };
@@ -918,7 +918,7 @@ export default function PostBills() {
 
             {/* Today button */}
             <button
-              onClick={() => scrollTo(todayKey)}
+              onClick={() => scrollTo(todayKey, true)}
               className="h-[38px] px-[19.872px] py-[6.624px] rounded-[6.624px] bg-white flex items-center justify-center hover:bg-white/90 transition-colors"
               title="jump to today"
             >
@@ -1024,8 +1024,8 @@ export default function PostBills() {
 
                         {/* Header */}
                         <div className="relative z-10 shrink-0 w-full">
-                          {has || isToday(key) ? (
-                            // White filled header for populated columns or today
+                          {isToday(key) ? (
+                            // White filled header ONLY for today
                             <div 
                               className="w-full rounded-[5px] bg-white flex flex-col items-center gap-px p-[5px]"
                               style={{ color: DESIGN.colors.mainBlue }}
@@ -1034,7 +1034,7 @@ export default function PostBills() {
                                 className="uppercase tracking-[0.2488px] leading-[19.5px]"
                                 style={{ fontFamily: "'Andale Mono', monospace", fontSize: '18px' }}
                               >
-                                {has ? fmtDOW(d).toUpperCase() : fmtDOWShort(d)}
+                                {fmtDOW(d).toUpperCase()}
                               </div>
                               <div
                                 className="uppercase tracking-[0.2488px] leading-[19.5px]"
@@ -1044,7 +1044,7 @@ export default function PostBills() {
                               </div>
                             </div>
                           ) : (
-                            // Border-only header for empty columns
+                            // Border-only header for all other columns
                             <div 
                               className="w-full rounded-[5px] border border-white flex flex-col items-center gap-px p-[6px] text-white"
                             >
