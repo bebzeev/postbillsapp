@@ -16,7 +16,7 @@ import {
   getQueuedOperations,
   removeQueuedOperation,
   incrementOperationRetries,
-  QueuedOperation,
+  type QueuedOperation,
 } from './db';
 
 const MAX_RETRIES = 3;
