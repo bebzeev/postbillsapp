@@ -964,15 +964,16 @@ export default function PostBills() {
       style={{ 
         backgroundColor: DESIGN.colors.mainBlue,
         fontFamily: DESIGN.fonts.body,
-        paddingTop: 'env(safe-area-inset-top)',
-        paddingBottom: 'env(safe-area-inset-bottom)',
       }}
     >
       {/* Header */}
       <div
         ref={headerRef}
         className="shrink-0 border-b border-white/20"
-        style={{ boxShadow: '0px 4px 4px 0px rgba(0,0,0,0.25)' }}
+        style={{ 
+          boxShadow: '0px 4px 4px 0px rgba(0,0,0,0.25)',
+          paddingTop: 'env(safe-area-inset-top, 0px)',
+        }}
       >
         <div className="w-full px-[10px] pt-[10px] pb-[20px] flex items-center gap-[15px]">
           {/* Logo */}
@@ -1137,7 +1138,7 @@ export default function PostBills() {
         <div
           ref={scrollRef}
           style={{
-            height: `calc(100svh - ${headerH}px)`,
+            height: `calc(100svh - ${headerH}px - env(safe-area-inset-bottom, 0px))`,
             touchAction: isDragging ? 'none' : 'pan-x',
             overscrollBehaviorX: 'contain',
             overscrollBehaviorY: 'contain',
