@@ -386,14 +386,11 @@ export default function PostBills() {
     return () => unsub();
   }, [slug, days]);
 
-  useEffect(() => {
-    // Center Today's column on initial load after it's rendered
+  // Use useLayoutEffect to scroll to today before paint, avoiding timing issues
+  React.useLayoutEffect(() => {
     if (!hasScrolledToToday.current && columnRefs.current[todayKey]) {
-      const timer = setTimeout(() => {
-        scrollTo(todayKey, true, true); // center=true, instant=true
-        hasScrolledToToday.current = true;
-      }, 300);
-      return () => clearTimeout(timer);
+      scrollTo(todayKey, true, true); // center=true, instant=true
+      hasScrolledToToday.current = true;
     }
   }, [todayKey, visibleDays]);
 
@@ -1013,6 +1010,17 @@ export default function PostBills() {
                         ref={(el) => {
                           provided.innerRef(el);
                           columnRefs.current[key] = el;
+                          // Scroll to today's column as soon as it's mounted
+                          if (el && key === todayKey && !hasScrolledToToday.current) {
+                            requestAnimationFrame(() => {
+                              el.scrollIntoView({
+                                behavior: 'instant',
+                                inline: 'center',
+                                block: 'nearest',
+                              });
+                              hasScrolledToToday.current = true;
+                            });
+                          }
                         }}
                         {...provided.droppableProps}
                         onDragOver={(e) => onExtOver(e, key)}
