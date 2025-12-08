@@ -386,14 +386,6 @@ export default function PostBills() {
     return () => unsub();
   }, [slug, days]);
 
-  // Use useLayoutEffect to scroll to today before paint, avoiding timing issues
-  React.useLayoutEffect(() => {
-    if (!hasScrolledToToday.current && columnRefs.current[todayKey]) {
-      scrollTo(todayKey, true, true); // center=true, instant=true
-      hasScrolledToToday.current = true;
-    }
-  }, [todayKey, visibleDays]);
-
   useEffect(() => {
     const u = () => setHeaderH(headerRef.current?.offsetHeight || 96);
     u();
