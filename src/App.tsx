@@ -29,6 +29,8 @@ import {
   getDownloadURL,
   deleteObject,
 } from 'firebase/storage';
+import { saveBoard, getBoard, queueOperation } from './db';
+import { processSyncQueue, onSyncStatusChange, type SyncStatus } from './syncQueue';
 
 // ========== DESIGN SYSTEM - POSTBILLS ==========
 const DESIGN = {
@@ -259,6 +261,9 @@ export default function PostBills() {
     x: 0,
     y: 0,
   });
+  const [isOnline, setIsOnline] = useState(() => navigator.onLine);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
+  const [syncMessage, setSyncMessage] = useState<string>('');
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const columnRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
@@ -276,6 +281,57 @@ export default function PostBills() {
         : 'ontouchstart' in window),
     []
   );
+
+  // Network status detection
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      // Process sync queue when coming back online
+      if (firebaseReady && db && storage && slug) {
+        processSyncQueue(slug, db, storage).catch(console.error);
+      }
+    };
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [slug]);
+
+  // Subscribe to sync status updates
+  useEffect(() => {
+    const unsubscribe = onSyncStatusChange((event) => {
+      setSyncStatus(event.status);
+      if (event.message) {
+        setSyncMessage(event.message);
+      }
+    });
+    return unsubscribe;
+  }, []);
+
+  // Load cached board data from IndexedDB on mount
+  useEffect(() => {
+    if (!slug) return;
+    
+    getBoard(slug).then((cachedBoard) => {
+      if (cachedBoard) {
+        setBoard((prev) => {
+          const merged = { ...prev };
+          for (const dayKey in cachedBoard) {
+            merged[dayKey] = cachedBoard[dayKey];
+          }
+          return merged;
+        });
+        setDataLoaded(true);
+      }
+    }).catch((err) => {
+      console.warn('Failed to load cached board:', err);
+    });
+  }, [slug]);
 
   useEffect(() => {
     // Load fonts
@@ -376,11 +432,17 @@ export default function PostBills() {
         });
         for (const k in by)
           by[k].sort((a, b) => (a._order ?? 0) - (b._order ?? 0));
-        setBoard((p) => {
-          const n = { ...p };
-          for (const d of days) n[fmtKey(d)] = by[fmtKey(d)] || [];
-          return n;
+        
+        const newBoard: Board = {};
+        for (const d of days) newBoard[fmtKey(d)] = by[fmtKey(d)] || [];
+        
+        setBoard(newBoard);
+        
+        // Save to IndexedDB for offline access
+        saveBoard(slug, newBoard).catch((err) => {
+          console.warn('Failed to save board to IndexedDB:', err);
         });
+        
         // Mark data as loaded after first snapshot
         setDataLoaded(true);
       },
@@ -490,7 +552,15 @@ export default function PostBills() {
     }));
     setDeleteConfirm(null);
 
-    if (firebaseReady && db && storage) {
+    if (!isOnline) {
+      // Queue operation for later sync
+      await queueOperation({
+        type: 'delete',
+        slug,
+        timestamp: Date.now(),
+        data: { id },
+      });
+    } else if (firebaseReady && db && storage) {
       try {
         await deleteDoc(doc(db, 'boards', slug, 'items', id));
       } catch {}
@@ -509,7 +579,15 @@ export default function PostBills() {
       return { ...p, [dayKey]: a };
     });
 
-    if (firebaseReady && db) {
+    if (!isOnline) {
+      // Queue operation for later sync
+      await queueOperation({
+        type: 'update',
+        slug,
+        timestamp: Date.now(),
+        data: { id, dayKey, note },
+      });
+    } else if (firebaseReady && db) {
       try {
         await setDoc(
           doc(db, 'boards', slug, 'items', id),
@@ -523,23 +601,26 @@ export default function PostBills() {
   }
 
   async function toggleFav(dayKey: string, id: string, next: boolean) {
+    const cur = board[dayKey] || [];
+    const arr = cur.map((x) => (x.id === id ? { ...x, fav: next } : x));
+    const fav = arr.filter((x) => x.fav);
+    const rest = arr.filter((x) => !x.fav);
+    const fin = [...fav, ...rest];
+
     setBoard((p) => {
-      const a = Array.from(p[dayKey] || []);
-      const i = a.findIndex((x) => x.id === id);
-      if (i < 0) return p;
-      a[i] = { ...a[i], fav: next };
-      const fav = a.filter((x) => x.fav);
-      const rest = a.filter((x) => !x.fav);
-      return { ...p, [dayKey]: [...fav, ...rest] };
+      return { ...p, [dayKey]: fin };
     });
 
-    if (firebaseReady && db) {
+    if (!isOnline) {
+      // Queue operation for later sync
+      await queueOperation({
+        type: 'toggleFav',
+        slug,
+        timestamp: Date.now(),
+        data: { id, dayKey, fav: next, reorderedItems: fin },
+      });
+    } else if (firebaseReady && db) {
       try {
-        const cur = board[dayKey] || [];
-        const arr = cur.map((x) => (x.id === id ? { ...x, fav: next } : x));
-        const fav = arr.filter((x) => x.fav);
-        const rest = arr.filter((x) => !x.fav);
-        const fin = [...fav, ...rest];
         const b = writeBatch(db);
         b.update(doc(db, 'boards', slug, 'items', id), { fav: next, dayKey });
         fin.forEach((it, i) =>
@@ -582,7 +663,15 @@ export default function PostBills() {
       return { ...p, [dayKey]: n };
     });
 
-    if (firebaseReady && db && storage) {
+    if (!isOnline) {
+      // Queue operation for later sync
+      await queueOperation({
+        type: 'add',
+        slug,
+        timestamp: Date.now(),
+        data: { entries, dayKey, startOrder: from },
+      });
+    } else if (firebaseReady && db && storage) {
       try {
         if (cur.length && from < cur.length) {
           const sh = writeBatch(db);
@@ -784,26 +873,35 @@ export default function PostBills() {
     const dKey = destination.droppableId;
     if (sKey === dKey && source.index === destination.index) return;
 
+    const moved = (board[sKey] || [])[source.index];
+    if (!moved) return;
+
+    const sArr = Array.from(board[sKey] || []);
+    sArr.splice(source.index, 1);
+    const dArr = sKey === dKey ? sArr : Array.from(board[dKey] || []);
+    dArr.splice(destination.index, 0, moved);
+
     setBoard((p) => {
       const n = { ...p };
-      const sArr = Array.from(n[sKey] || []);
-      const [m] = sArr.splice(source.index, 1);
       n[sKey] = sArr;
-      const dArr = Array.from(n[dKey] || []);
-      dArr.splice(destination.index, 0, m);
       n[dKey] = dArr;
       return n;
     });
 
-    if (firebaseReady && db) {
-      const moved = (board[sKey] || [])[source.index];
-      if (!moved) return;
-
-      const sArr = Array.from(board[sKey] || []);
-      sArr.splice(source.index, 1);
-      const dArr = sKey === dKey ? sArr : Array.from(board[dKey] || []);
-      dArr.splice(destination.index, 0, moved);
-
+    if (!isOnline) {
+      // Queue operation for later sync
+      await queueOperation({
+        type: 'reorder',
+        slug,
+        timestamp: Date.now(),
+        data: {
+          sourceKey: sKey,
+          destKey: dKey,
+          sourceItems: sArr,
+          destItems: dArr,
+        },
+      });
+    } else if (firebaseReady && db) {
       const b = writeBatch(db);
       const write = (k: string, arr: ImageItem[]) =>
         arr.forEach((it, idx) =>
@@ -936,6 +1034,36 @@ export default function PostBills() {
             >
               <FilterIcon />
             </button>
+
+            {/* Network Status Indicator */}
+            {!isOnline && (
+              <div 
+                className="w-[12px] h-[12px] rounded-full bg-red-500 animate-pulse"
+                title="Offline - changes will sync when online"
+                aria-label="offline indicator"
+              />
+            )}
+            {syncStatus === 'syncing' && isOnline && (
+              <div 
+                className="w-[12px] h-[12px] rounded-full bg-yellow-400 animate-pulse"
+                title="Syncing changes..."
+                aria-label="syncing indicator"
+              />
+            )}
+            {syncStatus === 'success' && isOnline && (
+              <div 
+                className="w-[12px] h-[12px] rounded-full bg-green-500"
+                title={syncMessage || 'Synced'}
+                aria-label="sync success indicator"
+              />
+            )}
+            {syncStatus === 'error' && isOnline && (
+              <div 
+                className="w-[12px] h-[12px] rounded-full bg-red-500"
+                title={syncMessage || 'Sync error'}
+                aria-label="sync error indicator"
+              />
+            )}
 
             {/* Today button */}
             <button
