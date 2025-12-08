@@ -385,12 +385,12 @@ export default function PostBills() {
   }, [slug, days]);
 
   useEffect(() => {
-    // Scroll to today's column after it's rendered (only once on initial load)
+    // Center Today's column on initial load after it's rendered
     if (!hasScrolledToToday.current && columnRefs.current[todayKey]) {
       const timer = setTimeout(() => {
-        scrollTo(todayKey, true);
+        scrollTo(todayKey, true, true); // center=true, instant=true
         hasScrolledToToday.current = true;
-      }, 100);
+      }, 300);
       return () => clearTimeout(timer);
     }
   }, [todayKey, visibleDays]);
@@ -461,10 +461,10 @@ export default function PostBills() {
   const isPast = (k: string) => k < todayKey;
   const isToday = (k: string) => k === todayKey;
 
-  const scrollTo = (k: string, center = false) => {
+  const scrollTo = (k: string, center = false, instant = false) => {
     const el = columnRefs.current[k];
     el?.scrollIntoView({
-      behavior: 'smooth',
+      behavior: instant ? 'instant' : 'smooth',
       inline: center ? 'center' : 'start',
       block: 'nearest',
     });
