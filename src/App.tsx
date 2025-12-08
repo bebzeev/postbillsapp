@@ -470,9 +470,10 @@ export default function PostBills() {
   }, []);
 
   useEffect(() => {
-    // Reset notes visibility when viewer changes
+    // Reset notes visibility when viewer changes (different image or closed)
+    // Only reset when viewer.id changes, not when note/fav updates
     setShowNotes(false);
-  }, [viewer]);
+  }, [viewer?.id]);
 
   useEffect(() => {
     if (!viewer) return;
@@ -960,15 +961,10 @@ export default function PostBills() {
 
   return (
     <div
-      className="w-full fixed overflow-hidden flex flex-col"
+      className="w-full fixed inset-0 overflow-hidden flex flex-col"
       style={{ 
         backgroundColor: DESIGN.colors.mainBlue,
         fontFamily: DESIGN.fonts.body,
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        minHeight: '100svh',
       }}
     >
       {/* Header */}
