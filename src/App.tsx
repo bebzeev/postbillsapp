@@ -263,6 +263,7 @@ export default function PostBills() {
   const headerRef = useRef<HTMLDivElement>(null);
   const [headerH, setHeaderH] = useState(96);
   const anchorRef = useRef<string | null>(null);
+  const hasScrolledToToday = useRef(false);
 
   const isTouch = useMemo(
     () =>
@@ -384,8 +385,15 @@ export default function PostBills() {
   }, [slug, days]);
 
   useEffect(() => {
-    scrollTo(todayKey, true);
-  }, []);
+    // Scroll to today's column after it's rendered (only once on initial load)
+    if (!hasScrolledToToday.current && columnRefs.current[todayKey]) {
+      const timer = setTimeout(() => {
+        scrollTo(todayKey, true);
+        hasScrolledToToday.current = true;
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [todayKey, visibleDays]);
 
   useEffect(() => {
     const u = () => setHeaderH(headerRef.current?.offsetHeight || 96);
