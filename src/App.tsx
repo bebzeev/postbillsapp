@@ -964,6 +964,8 @@ export default function PostBills() {
       style={{ 
         backgroundColor: DESIGN.colors.mainBlue,
         fontFamily: DESIGN.fonts.body,
+        paddingTop: 'env(safe-area-inset-top)',
+        paddingBottom: 'env(safe-area-inset-bottom)',
       }}
     >
       {/* Header */}
@@ -992,7 +994,69 @@ export default function PostBills() {
           </button>
 
           {/* Navigation */}
-          <div className="flex-1 flex items-center justify-end gap-[10px]">
+          <div className="flex-1 flex items-center justify-end gap-[10px] relative">
+            {/* Network Status Indicator - Floating above buttons */}
+            {!isOnline && (
+              <div 
+                className="absolute -top-[20px] right-0 flex items-center gap-1 pointer-events-none"
+                style={{ zIndex: 100 }}
+              >
+                <div 
+                  className="w-[10px] h-[10px] rounded-full bg-red-500 animate-pulse"
+                  title="Offline - changes will sync when online"
+                  aria-label="offline indicator"
+                />
+                <span className="text-[10px] text-white/90 uppercase tracking-wide font-medium">
+                  offline
+                </span>
+              </div>
+            )}
+            {syncStatus === 'syncing' && isOnline && (
+              <div 
+                className="absolute -top-[20px] right-0 flex items-center gap-1 pointer-events-none"
+                style={{ zIndex: 100 }}
+              >
+                <div 
+                  className="w-[10px] h-[10px] rounded-full bg-yellow-400 animate-pulse"
+                  title="Syncing changes..."
+                  aria-label="syncing indicator"
+                />
+                <span className="text-[10px] text-white/90 uppercase tracking-wide font-medium">
+                  syncing
+                </span>
+              </div>
+            )}
+            {syncStatus === 'success' && isOnline && (
+              <div 
+                className="absolute -top-[20px] right-0 flex items-center gap-1 pointer-events-none"
+                style={{ zIndex: 100 }}
+              >
+                <div 
+                  className="w-[10px] h-[10px] rounded-full bg-green-500"
+                  title={syncMessage || 'Synced'}
+                  aria-label="sync success indicator"
+                />
+                <span className="text-[10px] text-white/90 uppercase tracking-wide font-medium">
+                  synced
+                </span>
+              </div>
+            )}
+            {syncStatus === 'error' && isOnline && (
+              <div 
+                className="absolute -top-[20px] right-0 flex items-center gap-1 pointer-events-none"
+                style={{ zIndex: 100 }}
+              >
+                <div 
+                  className="w-[10px] h-[10px] rounded-full bg-red-500"
+                  title={syncMessage || 'Sync error'}
+                  aria-label="sync error indicator"
+                />
+                <span className="text-[10px] text-white/90 uppercase tracking-wide font-medium">
+                  error
+                </span>
+              </div>
+            )}
+
             {/* Link button */}
             <button
               onClick={copyShare}
@@ -1034,36 +1098,6 @@ export default function PostBills() {
             >
               <FilterIcon />
             </button>
-
-            {/* Network Status Indicator */}
-            {!isOnline && (
-              <div 
-                className="w-[12px] h-[12px] rounded-full bg-red-500 animate-pulse"
-                title="Offline - changes will sync when online"
-                aria-label="offline indicator"
-              />
-            )}
-            {syncStatus === 'syncing' && isOnline && (
-              <div 
-                className="w-[12px] h-[12px] rounded-full bg-yellow-400 animate-pulse"
-                title="Syncing changes..."
-                aria-label="syncing indicator"
-              />
-            )}
-            {syncStatus === 'success' && isOnline && (
-              <div 
-                className="w-[12px] h-[12px] rounded-full bg-green-500"
-                title={syncMessage || 'Synced'}
-                aria-label="sync success indicator"
-              />
-            )}
-            {syncStatus === 'error' && isOnline && (
-              <div 
-                className="w-[12px] h-[12px] rounded-full bg-red-500"
-                title={syncMessage || 'Sync error'}
-                aria-label="sync error indicator"
-              />
-            )}
 
             {/* Today button */}
             <button
