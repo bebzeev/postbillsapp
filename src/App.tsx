@@ -9,6 +9,7 @@ import {
   Trash2,
   Copy,
   Link2,
+  FileText,
 } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import {
@@ -234,6 +235,7 @@ export default function PostBills() {
 
   const [board, setBoard] = useState<Board>({});
   const [viewer, setViewer] = useState<Viewer | null>(null);
+  const [showNotes, setShowNotes] = useState(false);
   const [fileOver, setFileOver] = useState<string | null>(null);
   const [externalHover, setExternalHover] = useState<{
     dayKey: string | null;
@@ -403,9 +405,17 @@ export default function PostBills() {
   }, []);
 
   useEffect(() => {
+    // Reset notes visibility when viewer changes
+    setShowNotes(false);
+  }, [viewer]);
+
+  useEffect(() => {
     if (!viewer) return;
     const on = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setViewer(null);
+      if (e.key === 'Escape') {
+        setViewer(null);
+        setShowNotes(false);
+      }
     };
     window.addEventListener('keydown', on);
     return () => window.removeEventListener('keydown', on);
@@ -1304,10 +1314,16 @@ export default function PostBills() {
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
           className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-8"
-          onClick={() => setViewer(null)}
+          onClick={() => {
+            setViewer(null);
+            setShowNotes(false);
+          }}
         >
           <button
-            onClick={() => setViewer(null)}
+            onClick={() => {
+              setViewer(null);
+              setShowNotes(false);
+            }}
             className="fixed top-4 right-4 z-[60] w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 grid place-items-center transition-all"
             title="close"
             aria-label="close"
@@ -1391,34 +1407,61 @@ export default function PostBills() {
                 >
                   <Link2 className="w-5 h-5 text-[#0037ae]" />
                 </button>
+
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowNotes((prev) => !prev);
+                  }}
+                  className={`w-10 h-10 rounded-full grid place-items-center shadow-lg ${
+                    viewer.note
+                      ? 'bg-[#0037ae]'
+                      : 'bg-white'
+                  } ${
+                    viewer.note
+                      ? ''
+                      : isTouch
+                      ? 'opacity-0 pointer-events-none'
+                      : 'opacity-0 group-hover:opacity-100'
+                  }`}
+                  title={viewer.note ? 'toggle notes' : 'add notes'}
+                  aria-label="toggle notes"
+                >
+                  <FileText
+                    className="w-5 h-5"
+                    {...(viewer.note ? { color: 'white' } : { color: '#0037ae' })}
+                  />
+                </button>
               </div>
             </motion.div>
 
-            <motion.div
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{
-                duration: 0.25,
-                delay: 0.1,
-                ease: [0.16, 1, 0.3, 1],
-              }}
-              className="w-full max-w-2xl p-4 rounded-lg bg-white shadow-xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <label className="block text-sm font-medium text-neutral-700 mb-2">
-                Notes
-              </label>
-              <textarea
-                value={viewer.note || ''}
-                onChange={(e) => {
-                  const newNote = e.target.value;
-                  setViewer((v) => (v ? { ...v, note: newNote } : v));
-                  updateImageNote(viewer.dayKey, viewer.id, newNote);
+            {showNotes && (
+              <motion.div
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{
+                  duration: 0.25,
+                  delay: 0.1,
+                  ease: [0.16, 1, 0.3, 1],
                 }}
-                placeholder="Add notes about this image..."
-                className="w-full px-3 py-2 rounded-lg border border-neutral-200 bg-neutral-50 focus:bg-white outline-none min-h-[100px] resize-y"
-              />
-            </motion.div>
+                className="w-full max-w-2xl p-4 rounded-lg bg-white shadow-xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <label className="block text-sm font-medium text-neutral-700 mb-2">
+                  Notes
+                </label>
+                <textarea
+                  value={viewer.note || ''}
+                  onChange={(e) => {
+                    const newNote = e.target.value;
+                    setViewer((v) => (v ? { ...v, note: newNote } : v));
+                    updateImageNote(viewer.dayKey, viewer.id, newNote);
+                  }}
+                  placeholder="Add notes about this image..."
+                  className="w-full px-3 py-2 rounded-lg border border-neutral-200 bg-neutral-50 focus:bg-white outline-none min-h-[100px] resize-y"
+                />
+              </motion.div>
+            )}
           </div>
         </motion.div>
       )}
@@ -1450,6 +1493,7 @@ export default function PostBills() {
                     viewer.id === deleteConfirm.id
                   ) {
                     setViewer(null);
+                    setShowNotes(false);
                   }
                 }}
                 className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
