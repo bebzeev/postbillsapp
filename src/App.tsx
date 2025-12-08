@@ -1582,12 +1582,6 @@ export default function PostBills() {
                     viewer.note
                       ? 'bg-[#0037ae]'
                       : 'bg-white'
-                  } ${
-                    viewer.note
-                      ? ''
-                      : isTouch
-                      ? 'opacity-0 pointer-events-none'
-                      : 'opacity-0 group-hover:opacity-100'
                   }`}
                   title={viewer.note ? 'toggle notes' : 'add notes'}
                   aria-label="toggle notes"
