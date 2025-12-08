@@ -1004,13 +1004,13 @@ export default function PostBills() {
                           columnRefs.current[key] = el;
                           // Scroll to today's column as soon as it's mounted
                           if (el && key === todayKey && !hasScrolledToToday.current) {
+                            hasScrolledToToday.current = true; // Set flag immediately to prevent duplicate scrolls
                             requestAnimationFrame(() => {
                               el.scrollIntoView({
                                 behavior: 'instant',
                                 inline: 'center',
                                 block: 'nearest',
                               });
-                              hasScrolledToToday.current = true;
                             });
                           }
                         }}
