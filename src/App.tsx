@@ -35,13 +35,14 @@ import {
 // ========== DESIGN SYSTEM - EDIT HERE ==========
 const DESIGN = {
   colors: {
-    primary: 'red',
-    primaryShade: '600',
-    primaryHover: '500',
-    todayStripe1: '#fda4af', // Darker pink stripe
-    todayStripe2: '#fecdd3', // Lighter pink stripe
+    primary: 'blue',
+    primaryShade: '700',
+    primaryHover: '600',
+    primaryBg: '#0047BB', // Royal blue background
+    todayStripe1: '#0047BB', // Blue stripe
+    todayStripe2: '#0056D6', // Lighter blue stripe
     todayStripeWidth: '10px', // Width of each stripe
-    background: 'from-rose-50 via-rose-100 to-white',
+    background: 'bg-[#0047BB]',
   },
   spacing: {
     columnGapNarrow: 'gap-3',
@@ -50,30 +51,29 @@ const DESIGN = {
     columnGapFilteredWide: 'gap-6',
     containerPaddingNarrow: 'px-3',
     containerPaddingWide: 'px-4',
-    itemSpacing: 'space-y-4',
+    itemSpacing: 'space-y-3',
   },
   radius: {
-    column: 'rounded-xl',
+    column: 'rounded-2xl',
     image: 'rounded-lg',
-    button: 'rounded-full',
-    card: 'rounded-lg',
+    button: 'rounded-xl',
+    card: 'rounded-xl',
     modal: 'rounded-2xl',
   },
   fonts: {
-    family:
-      "'DM Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-    casing: 'lowercase',
+    family: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    casing: 'uppercase',
   },
   shadows: {
     column: 'shadow-lg',
-    image: 'shadow-2xl',
-    button: 'shadow',
+    image: 'shadow-xl',
+    button: 'shadow-md',
     card: 'shadow-xl',
   },
   borders: {
-    column: 'border',
-    columnColor: 'border-neutral-200',
-    ring: 'ring-1 ring-neutral-300',
+    column: 'border-2',
+    columnColor: 'border-white',
+    ring: 'ring-2 ring-white',
   },
 };
 // ========== END DESIGN SYSTEM ==========
@@ -105,7 +105,7 @@ const genRange = (future) => {
 const FAVICON_DATA_URL =
   'data:image/svg+xml;utf8,' +
   encodeURIComponent(
-    "<?xml version=\"1.0\" encoding=\"UTF-8\"?><svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='#dc2626'/><rect x='16' y='20' width='32' height='28' rx='5' fill='#fff'/><rect x='16' y='20' width='32' height='8' rx='5' fill='#fee2e2'/><circle cx='24' cy='14' r='4' fill='#fff'/><circle cx='40' cy='14' r='4' fill='#fff'/></svg>"
+    "<?xml version=\"1.0\" encoding=\"UTF-8\"?><svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='#0047BB'/><rect x='16' y='20' width='32' height='28' rx='5' fill='#fff'/><rect x='16' y='20' width='32' height='8' rx='5' fill='#e0efff'/><circle cx='24' cy='14' r='4' fill='#fff'/><circle cx='40' cy='14' r='4' fill='#fff'/></svg>"
   );
 
 async function fileToDataUrlCompressed(file, maxWidth = 1400) {
@@ -260,9 +260,9 @@ export default function Eventi() {
     const l = document.createElement('link');
     l.rel = 'stylesheet';
     l.href =
-      'https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&display=swap';
+      'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap';
     document.head.appendChild(l);
-    document.title = "bori's eventi";
+    document.title = "POSTBILLS";
     let link = document.querySelector("link[rel='icon']");
     if (!link) {
       link = document.createElement('link');
@@ -795,7 +795,7 @@ export default function Eventi() {
       aria-hidden
     >
       <div
-        className={`${thin ? 'w-[2px]' : 'w-[3px]'} bg-neutral-300/80`}
+        className={`${thin ? 'w-[2px]' : 'w-[3px]'} bg-white/40`}
         style={{ height: '80%' }}
       />
     </div>
@@ -803,7 +803,7 @@ export default function Eventi() {
 
   const Placeholder = ({ onDropBlock, onDragOverBlock }) => (
     <div
-      className="relative z-20 h-10 rounded-md border-2 border-dashed border-neutral-400 bg-neutral-100"
+      className="relative z-20 h-10 rounded-xl border-2 border-dashed border-white/50 bg-white/10"
       aria-label="Drop position"
       onDragOver={onDragOverBlock}
       onDrop={onDropBlock}
@@ -842,76 +842,68 @@ export default function Eventi() {
 
   return (
     <div
-      className={`w-full fixed inset-0 overflow-hidden bg-gradient-to-br ${DESIGN.colors.background} text-neutral-900 flex flex-col ${DESIGN.fonts.casing}`}
-      style={{ fontFamily: DESIGN.fonts.family }}
+      className={`w-full fixed inset-0 overflow-hidden text-white flex flex-col ${DESIGN.fonts.casing}`}
+      style={{ fontFamily: DESIGN.fonts.family, backgroundColor: DESIGN.colors.primaryBg }}
     >
       <div
         ref={headerRef}
-        className="sticky top-0 z-20 bg-white/80 md:backdrop-blur border-b border-neutral-200"
+        className="sticky top-0 z-20 border-b-2 border-white/20"
+        style={{ backgroundColor: DESIGN.colors.primaryBg }}
       >
-        <div className="w-full px-4 py-3 flex items-center gap-3">
+        <div className="w-full px-4 py-4 flex items-center gap-3">
           <button
             onClick={() => setShowSlugPrompt(true)}
-            className="flex items-center gap-3 min-w-[140px] focus:outline-none"
+            className="flex items-center gap-3 focus:outline-none"
             title="set board name"
           >
-            <div
-              className={`w-8 h-8 ${DESIGN.radius.button} bg-${DESIGN.colors.primary}-${DESIGN.colors.primaryShade} grid place-items-center shrink-0`}
-            >
-              <Calendar className="w-4 h-4 text-white" />
-            </div>
-            <div className="font-semibold leading-tight text-left">
-              <span className="block sm:inline">bori's</span>
-              <span className="block sm:inline sm:ml-1">eventi</span>
+            <div className="font-black text-2xl sm:text-3xl leading-none tracking-tight text-white">
+              POST<br className="sm:hidden" />BILLS
             </div>
           </button>
           <div className="ml-auto flex items-center gap-2">
             <button
-              onClick={() => scrollTo(todayKey)}
-              className={`px-3 py-1.5 ${DESIGN.radius.button} text-sm font-medium bg-${DESIGN.colors.primary}-${DESIGN.colors.primaryShade} text-white hover:bg-${DESIGN.colors.primary}-${DESIGN.colors.primaryHover} ${DESIGN.shadows.button}`}
-              title="jump to today"
-            >
-              today
-            </button>
-            <button
               onClick={copyShare}
-              className={`p-2 ${DESIGN.radius.button} bg-white ${DESIGN.borders.ring} hover:bg-neutral-50 ${DESIGN.shadows.button}`}
+              className={`p-2.5 ${DESIGN.radius.button} border-2 border-white/30 hover:bg-white/10 transition-colors`}
               title="copy link"
               aria-label="copy link"
             >
-              <LinkIcon className="w-4 h-4" />
+              <LinkIcon className="w-5 h-5 text-white" strokeWidth={2} />
             </button>
-            {copied && <span className="text-xs text-green-700">copied ✓</span>}
+            {copied && <span className="text-xs text-green-300 font-semibold">copied ✓</span>}
+            <button
+              onClick={() => setShowFavOnly((v) => !v)}
+              className={`p-2.5 ${DESIGN.radius.button} border-2 transition-colors ${
+                showFavOnly
+                  ? 'bg-white/20 border-white/50'
+                  : 'border-white/30 hover:bg-white/10'
+              }`}
+              title="show only favorites"
+              aria-label="show only favorites"
+            >
+              <Star className="w-5 h-5 text-white" strokeWidth={2} fill={showFavOnly ? 'white' : 'none'} />
+            </button>
             <button
               onClick={() => {
                 anchorRef.current = null;
                 setHideEmpty((v) => !v);
               }}
-              className={`p-2 ${DESIGN.radius.button} ${
-                DESIGN.shadows.button
-              } ${
+              className={`p-2.5 ${DESIGN.radius.button} border-2 transition-colors ${
                 hideEmpty
-                  ? `bg-${DESIGN.colors.primary}-${DESIGN.colors.primaryShade} text-white hover:bg-${DESIGN.colors.primary}-${DESIGN.colors.primaryHover}`
-                  : `bg-white ${DESIGN.borders.ring} text-neutral-800 hover:bg-neutral-50`
+                  ? 'bg-white/20 border-white/50'
+                  : 'border-white/30 hover:bg-white/10'
               }`}
               title="toggle hide empty days"
               aria-label="toggle hide empty days"
             >
-              <Filter className="w-4 h-4" />
+              <Filter className="w-5 h-5 text-white" strokeWidth={2} />
             </button>
             <button
-              onClick={() => setShowFavOnly((v) => !v)}
-              className={`p-2 ${DESIGN.radius.button} ${
-                DESIGN.shadows.button
-              } ${
-                showFavOnly
-                  ? `bg-${DESIGN.colors.primary}-${DESIGN.colors.primaryShade} text-white hover:bg-${DESIGN.colors.primary}-${DESIGN.colors.primaryHover}`
-                  : `bg-white ${DESIGN.borders.ring} text-neutral-800 hover:bg-neutral-50`
-              }`}
-              title="show only favorites"
-              aria-label="show only favorites"
+              onClick={() => scrollTo(todayKey)}
+              className={`px-4 py-2 ${DESIGN.radius.button} text-sm font-bold bg-white hover:bg-white/90 transition-colors`}
+              style={{ color: DESIGN.colors.primaryBg }}
+              title="jump to today"
             >
-              <Star className="w-4 h-4" />
+              TODAY
             </button>
           </div>
         </div>
@@ -950,10 +942,8 @@ export default function Eventi() {
               const has = items.length > 0;
               const w = has ? populated : empty;
 
-              // Stripe background for today - matching original code style
-              const baseClass = isToday(key)
-                ? `repeating-linear-gradient(45deg, ${DESIGN.colors.todayStripe1} 0px, ${DESIGN.colors.todayStripe1} ${DESIGN.colors.todayStripeWidth}, ${DESIGN.colors.todayStripe2} ${DESIGN.colors.todayStripeWidth}, ${DESIGN.colors.todayStripe2} calc(${DESIGN.colors.todayStripeWidth} * 2))`
-                : '#ffffff';
+              // Background for columns - always blue
+              const bgStyle = DESIGN.colors.primaryBg;
 
               let sep = null;
               if ((hideEmpty || showFavOnly) && i > 0) {
@@ -989,6 +979,7 @@ export default function Eventi() {
                           width: w,
                           touchAction: isDragging ? 'none' : 'auto',
                           overscrollBehaviorY: 'contain',
+                          backgroundColor: bgStyle,
                         }}
                         onTouchMove={(e) => {
                           if (isDragging) e.preventDefault();
@@ -997,24 +988,24 @@ export default function Eventi() {
                           DESIGN.radius.column
                         } ${DESIGN.borders.column} ${
                           fileOver === key
-                            ? 'border-4 border-dashed border-neutral-400'
+                            ? 'border-4 border-dashed border-white/50'
                             : DESIGN.borders.columnColor
-                        } ${
-                          DESIGN.shadows.column
-                        } transition-all duration-200 ease-out ${base}`}
+                        } transition-all duration-200 ease-out`}
                       >
-                        <div className="relative z-20 shrink-0 px-3 pt-3 mb-4">
+                        <div className="relative z-20 shrink-0 p-3 pb-0">
                           <div
-                            className={`w-full px-3 py-2 ${DESIGN.radius.card} bg-white/90 ${DESIGN.borders.ring} ${DESIGN.shadows.button} text-center`}
+                            className={`w-full px-4 py-2.5 ${DESIGN.radius.card} bg-white border-2 text-center`}
+                            style={{ borderColor: DESIGN.colors.primaryBg }}
                           >
                             <div
-                              className={`text-base font-semibold leading-tight ${
-                                DESIGN.fonts.casing
-                              } ${isToday(key) ? 'text-neutral-900' : ''}`}
+                              className={`text-sm font-bold leading-tight tracking-wide`}
+                              style={{ color: DESIGN.colors.primaryBg }}
                             >
                               {has ? fmtDOW(d) : fmtDOWShort(d)}
                             </div>
-                            <div className="text-xs opacity-70">{fmtMD(d)}</div>
+                            <div className="text-xs font-semibold mt-0.5" style={{ color: DESIGN.colors.primaryBg }}>
+                              {fmtMD(d)}
+                            </div>
                           </div>
                         </div>
 
@@ -1038,7 +1029,7 @@ export default function Eventi() {
                           }}
                         >
                           {isPast(key) && (
-                            <div className="pointer-events-none absolute inset-0 rounded-md bg-neutral-400/45 z-10" />
+                            <div className="pointer-events-none absolute inset-0 rounded-xl bg-black/30 z-10" />
                           )}
                           {render.length > 0 && phIdx === 0 && (
                             <Placeholder
@@ -1128,14 +1119,14 @@ export default function Eventi() {
                                       }}
                                       className={`absolute top-2 left-2 w-8 h-8 ${
                                         DESIGN.radius.button
-                                      } bg-red-600 text-white shadow-md grid place-items-center transition-opacity ${
+                                      } bg-red-600 text-white shadow-lg grid place-items-center transition-opacity ${
                                         isTouch
                                           ? 'opacity-0 pointer-events-none'
                                           : 'opacity-0 group-hover:opacity-100'
                                       }`}
                                       title="delete"
                                     >
-                                      <Trash2 className="w-4 h-4" />
+                                      <Trash2 className="w-4 h-4" strokeWidth={2} />
                                     </button>
 
                                     <div className="absolute top-2 right-2 flex flex-col gap-2">
@@ -1146,10 +1137,10 @@ export default function Eventi() {
                                         }}
                                         className={`w-8 h-8 ${
                                           DESIGN.radius.button
-                                        } grid place-items-center transition-opacity ${
+                                        } grid place-items-center transition-opacity shadow-lg ${
                                           it.fav
-                                            ? `bg-${DESIGN.colors.primary}-${DESIGN.colors.primaryShade}`
-                                            : `bg-white ${DESIGN.borders.ring}`
+                                            ? 'bg-white border-2'
+                                            : 'bg-white border-2'
                                         } ${
                                           it.fav
                                             ? ''
@@ -1157,15 +1148,17 @@ export default function Eventi() {
                                             ? 'opacity-0 pointer-events-none'
                                             : 'opacity-0 group-hover:opacity-100'
                                         }`}
+                                        style={it.fav ? { borderColor: DESIGN.colors.primaryBg } : { borderColor: DESIGN.colors.primaryBg }}
                                         title={
                                           it.fav ? 'unfavorite' : 'favorite'
                                         }
                                       >
                                         <Star
                                           className="w-4 h-4"
+                                          strokeWidth={2}
                                           {...(it.fav
-                                            ? { color: 'white', fill: 'white' }
-                                            : {})}
+                                            ? { fill: DESIGN.colors.primaryBg, color: DESIGN.colors.primaryBg }
+                                            : { color: DESIGN.colors.primaryBg })}
                                         />
                                       </button>
 
@@ -1176,16 +1169,15 @@ export default function Eventi() {
                                         }}
                                         className={`w-8 h-8 ${
                                           DESIGN.radius.button
-                                        } bg-white ${
-                                          DESIGN.borders.ring
-                                        } shadow-md grid place-items-center transition-opacity ${
+                                        } bg-white border-2 shadow-lg grid place-items-center transition-opacity ${
                                           isTouch
                                             ? 'opacity-0 pointer-events-none'
                                             : 'opacity-0 group-hover:opacity-100'
                                         }`}
+                                        style={{ borderColor: DESIGN.colors.primaryBg }}
                                         title="download image"
                                       >
-                                        <Copy className="w-4 h-4" />
+                                        <Copy className="w-4 h-4" strokeWidth={2} style={{ color: DESIGN.colors.primaryBg }} />
                                       </button>
 
                                       <button
@@ -1195,16 +1187,15 @@ export default function Eventi() {
                                         }}
                                         className={`w-8 h-8 ${
                                           DESIGN.radius.button
-                                        } bg-white ${
-                                          DESIGN.borders.ring
-                                        } shadow-md grid place-items-center transition-opacity ${
+                                        } bg-white border-2 shadow-lg grid place-items-center transition-opacity ${
                                           isTouch
                                             ? 'opacity-0 pointer-events-none'
                                             : 'opacity-0 group-hover:opacity-100'
                                         }`}
+                                        style={{ borderColor: DESIGN.colors.primaryBg }}
                                         title="copy link to image"
                                       >
-                                        <Link2 className="w-4 h-4" />
+                                        <Link2 className="w-4 h-4" strokeWidth={2} style={{ color: DESIGN.colors.primaryBg }} />
                                       </button>
                                     </div>
                                   </div>
@@ -1228,10 +1219,10 @@ export default function Eventi() {
               <div className="flex items-center pr-4">
                 <button
                   onClick={() => setFutureShown((v) => Math.min(365, v + 60))}
-                  className={`p-3 ${DESIGN.radius.button} bg-${DESIGN.colors.primary}-${DESIGN.colors.primaryShade} text-white ${DESIGN.shadows.button} hover:bg-${DESIGN.colors.primary}-${DESIGN.colors.primaryHover}`}
+                  className={`p-3 ${DESIGN.radius.button} border-2 border-white text-white hover:bg-white/10 transition-colors`}
                   title="load 60 more days"
                 >
-                  <ChevronRight className="w-5 h-5" />
+                  <ChevronRight className="w-5 h-5" strokeWidth={2} />
                 </button>
               </div>
             )}
@@ -1251,11 +1242,11 @@ export default function Eventi() {
           {/* Close X button - visually separated at top right of screen */}
           <button
             onClick={() => setViewer(null)}
-            className={`fixed top-4 right-4 z-[60] w-12 h-12 ${DESIGN.radius.button} bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 grid place-items-center transition-all`}
+            className={`fixed top-4 right-4 z-[60] w-12 h-12 ${DESIGN.radius.button} bg-white/10 hover:bg-white/20 backdrop-blur-sm border-2 border-white/20 grid place-items-center transition-all`}
             title="close"
             aria-label="close"
           >
-            <X className="w-6 h-6 text-white" />
+            <X className="w-6 h-6 text-white" strokeWidth={2} />
           </button>
 
           <div className="relative max-w-4xl w-full flex flex-col items-center gap-4">
@@ -1279,15 +1270,13 @@ export default function Eventi() {
                 }}
                 className={`absolute top-3 left-3 z-10 w-10 h-10 ${
                   DESIGN.radius.button
-                } bg-red-600 text-white ${
-                  DESIGN.shadows.button
-                } grid place-items-center ${
+                } bg-red-600 text-white shadow-lg grid place-items-center ${
                   isTouch ? '' : 'opacity-0 group-hover:opacity-100'
                 } transition-opacity`}
                 title="delete"
                 aria-label="delete"
               >
-                <Trash2 className="w-5 h-5" />
+                <Trash2 className="w-5 h-5" strokeWidth={2} />
               </button>
 
               <div
@@ -1303,17 +1292,15 @@ export default function Eventi() {
                   }}
                   className={`w-10 h-10 ${
                     DESIGN.radius.button
-                  } grid place-items-center ${
-                    viewer.fav
-                      ? `bg-${DESIGN.colors.primary}-${DESIGN.colors.primaryShade}`
-                      : `bg-white ${DESIGN.borders.ring}`
-                  }`}
+                  } grid place-items-center bg-white border-2 shadow-lg`}
+                  style={{ borderColor: DESIGN.colors.primaryBg }}
                   title={viewer.fav ? 'unfavorite' : 'favorite'}
                   aria-label="favorite"
                 >
                   <Star
                     className="w-5 h-5"
-                    {...(viewer.fav ? { color: 'white', fill: 'white' } : {})}
+                    strokeWidth={2}
+                    {...(viewer.fav ? { fill: DESIGN.colors.primaryBg, color: DESIGN.colors.primaryBg } : { color: DESIGN.colors.primaryBg })}
                   />
                 </button>
 
@@ -1322,11 +1309,12 @@ export default function Eventi() {
                     e.stopPropagation();
                     copyImageToClipboard(viewer, e);
                   }}
-                  className={`w-10 h-10 ${DESIGN.radius.button} bg-white ${DESIGN.borders.ring} ${DESIGN.shadows.button} grid place-items-center`}
+                  className={`w-10 h-10 ${DESIGN.radius.button} bg-white border-2 shadow-lg grid place-items-center`}
+                  style={{ borderColor: DESIGN.colors.primaryBg }}
                   title="copy image"
                   aria-label="copy image"
                 >
-                  <Copy className="w-5 h-5" />
+                  <Copy className="w-5 h-5" strokeWidth={2} style={{ color: DESIGN.colors.primaryBg }} />
                 </button>
 
                 <button
@@ -1334,11 +1322,12 @@ export default function Eventi() {
                     e.stopPropagation();
                     copyImageLink(viewer.dayKey, viewer.id, e);
                   }}
-                  className={`w-10 h-10 ${DESIGN.radius.button} bg-white ${DESIGN.borders.ring} ${DESIGN.shadows.button} grid place-items-center`}
+                  className={`w-10 h-10 ${DESIGN.radius.button} bg-white border-2 shadow-lg grid place-items-center`}
+                  style={{ borderColor: DESIGN.colors.primaryBg }}
                   title="copy link"
                   aria-label="copy link"
                 >
-                  <Link2 className="w-5 h-5" />
+                  <Link2 className="w-5 h-5" strokeWidth={2} style={{ color: DESIGN.colors.primaryBg }} />
                 </button>
               </div>
             </motion.div>
@@ -1351,10 +1340,11 @@ export default function Eventi() {
                 delay: 0.1,
                 ease: [0.16, 1, 0.3, 1],
               }}
-              className={`w-full max-w-2xl p-4 ${DESIGN.radius.card} bg-white ${DESIGN.borders.ring}`}
+              className={`w-full max-w-2xl p-4 ${DESIGN.radius.card} bg-white border-2`}
+              style={{ borderColor: DESIGN.colors.primaryBg }}
               onClick={(e) => e.stopPropagation()}
             >
-              <label className="block text-sm font-medium text-neutral-700 mb-2">
+              <label className="block text-sm font-bold mb-2 uppercase" style={{ color: DESIGN.colors.primaryBg }}>
                 Notes
               </label>
               <textarea
@@ -1365,7 +1355,8 @@ export default function Eventi() {
                   updateImageNote(viewer.dayKey, viewer.id, newNote);
                 }}
                 placeholder="Add notes about this image..."
-                className={`w-full px-3 py-2 ${DESIGN.radius.card} ${DESIGN.borders.ring} bg-neutral-50 focus:bg-white outline-none min-h-[100px] resize-y`}
+                className={`w-full px-3 py-2 ${DESIGN.radius.card} border-2 bg-white focus:bg-blue-50 outline-none min-h-[100px] resize-y normal-case`}
+                style={{ borderColor: DESIGN.colors.primaryBg }}
               />
             </motion.div>
           </div>
@@ -1375,19 +1366,21 @@ export default function Eventi() {
       {deleteConfirm && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm grid place-items-center p-4">
           <div
-            className={`w-full max-w-sm ${DESIGN.radius.modal} bg-white ${DESIGN.shadows.card} ${DESIGN.borders.ring} p-5 space-y-4`}
+            className={`w-full max-w-sm ${DESIGN.radius.modal} bg-white ${DESIGN.shadows.card} border-2 p-5 space-y-4`}
+            style={{ borderColor: DESIGN.colors.primaryBg }}
           >
-            <h3 className="text-lg font-semibold text-neutral-900">
+            <h3 className="text-lg font-bold uppercase" style={{ color: DESIGN.colors.primaryBg }}>
               Delete Image?
             </h3>
-            <p className="text-sm text-neutral-600">
+            <p className="text-sm normal-case" style={{ color: DESIGN.colors.primaryBg }}>
               Are you sure you want to delete this image? This action cannot be
               undone.
             </p>
             <div className="flex gap-2 justify-end">
               <button
                 onClick={() => setDeleteConfirm(null)}
-                className={`px-4 py-2 ${DESIGN.radius.card} bg-neutral-100 text-neutral-800 hover:bg-neutral-200`}
+                className={`px-4 py-2 ${DESIGN.radius.card} border-2 hover:bg-gray-50 transition-colors uppercase font-bold text-sm`}
+                style={{ borderColor: DESIGN.colors.primaryBg, color: DESIGN.colors.primaryBg }}
               >
                 Cancel
               </button>
@@ -1402,7 +1395,8 @@ export default function Eventi() {
                     setViewer(null);
                   }
                 }}
-                className={`px-4 py-2 ${DESIGN.radius.card} bg-red-600 text-white hover:bg-red-700`}
+                className={`px-4 py-2 ${DESIGN.radius.card} text-white hover:opacity-90 transition-opacity uppercase font-bold text-sm`}
+                style={{ backgroundColor: '#DC2626' }}
               >
                 Delete
               </button>
@@ -1418,9 +1412,10 @@ export default function Eventi() {
           aria-modal
         >
           <div
-            className={`w-full max-w-sm ${DESIGN.radius.modal} bg-white ${DESIGN.shadows.card} ${DESIGN.borders.ring} p-5 space-y-3`}
+            className={`w-full max-w-sm ${DESIGN.radius.modal} bg-white ${DESIGN.shadows.card} border-2 p-5 space-y-3`}
+            style={{ borderColor: DESIGN.colors.primaryBg }}
           >
-            <div className="text-sm text-neutral-800">
+            <div className="text-sm font-bold uppercase" style={{ color: DESIGN.colors.primaryBg }}>
               create/go to existing board
             </div>
             <input
@@ -1435,10 +1430,11 @@ export default function Eventi() {
                   setShowSlugPrompt(false);
                 }
               }}
-              className={`w-full px-3 py-2 ${DESIGN.radius.card} ${DESIGN.borders.ring} bg-neutral-50 focus:bg-white outline-none`}
+              className={`w-full px-3 py-2 ${DESIGN.radius.card} border-2 bg-white focus:bg-blue-50 outline-none normal-case`}
+              style={{ borderColor: DESIGN.colors.primaryBg }}
             />
-            <div className="text-[12px] text-neutral-500">
-              tap the red calendar icon anytime to name/switch boards. we'll
+            <div className="text-[12px] normal-case" style={{ color: DESIGN.colors.primaryBg }}>
+              tap the POSTBILLS logo anytime to name/switch boards. we'll
               update the url to /your-slug. bookmark it. anyone with the link
               can view/edit.
             </div>
@@ -1451,7 +1447,8 @@ export default function Eventi() {
                     setShowSlugPrompt(false);
                   }
                 }}
-                className={`px-3 py-1.5 ${DESIGN.radius.card} bg-${DESIGN.colors.primary}-${DESIGN.colors.primaryShade} text-white disabled:opacity-50`}
+                className={`px-3 py-1.5 ${DESIGN.radius.card} text-white disabled:opacity-50 uppercase font-bold text-sm hover:opacity-90 transition-opacity`}
+                style={{ backgroundColor: DESIGN.colors.primaryBg }}
               >
                 continue
               </button>
@@ -1462,11 +1459,11 @@ export default function Eventi() {
 
       <button
         onClick={() => setShowHelp(true)}
-        className={`fixed bottom-4 right-4 z-40 w-10 h-10 ${DESIGN.radius.button} bg-white ${DESIGN.borders.ring} ${DESIGN.shadows.button} grid place-items-center`}
+        className={`fixed bottom-4 right-4 z-40 w-10 h-10 ${DESIGN.radius.button} border-2 border-white text-white hover:bg-white/10 grid place-items-center transition-colors`}
         title="help"
         aria-label="help"
       >
-        <HelpCircle className="w-5 h-5" />
+        <HelpCircle className="w-5 h-5" strokeWidth={2} />
       </button>
       {showHelp && (
         <>
@@ -1475,16 +1472,17 @@ export default function Eventi() {
             onClick={() => setShowHelp(false)}
           />
           <div
-            className={`fixed bottom-16 right-4 z-50 w-72 ${DESIGN.radius.column} bg-white ${DESIGN.shadows.card} ${DESIGN.borders.ring} p-3 text-[12px] text-neutral-700`}
+            className={`fixed bottom-16 right-4 z-50 w-72 ${DESIGN.radius.column} bg-white ${DESIGN.shadows.card} border-2 p-3 text-[12px]`}
+            style={{ borderColor: DESIGN.colors.primaryBg, color: DESIGN.colors.primaryBg }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="font-medium mb-1">quick tips</div>
-            <ul className="list-disc pl-4 space-y-1">
-              <li>tap the red calendar to create/go to your board.</li>
+            <div className="font-bold mb-1 uppercase">quick tips</div>
+            <ul className="list-disc pl-4 space-y-1 normal-case">
+              <li>tap POSTBILLS logo to create/go to your board.</li>
               <li>copy your link with the link icon.</li>
               <li>drag images from desktop into a day.</li>
               <li>use filters to hide empty/past or show only favorites.</li>
-              <li>tap today to center the current date.</li>
+              <li>tap TODAY to center the current date.</li>
               <li>tap outside this box to close.</li>
             </ul>
           </div>
@@ -1503,8 +1501,9 @@ export default function Eventi() {
               left: copyFeedback.x,
               top: copyFeedback.y,
               zIndex: 9999,
+              backgroundColor: DESIGN.colors.primaryBg,
             }}
-            className="bg-green-600 text-white text-xs px-3 py-1.5 rounded-full shadow-lg font-medium whitespace-nowrap"
+            className="text-white text-xs px-3 py-1.5 rounded-xl shadow-lg font-bold whitespace-nowrap uppercase"
           >
             {copyFeedback.type === 'image'
               ? 'Image downloaded!'
@@ -1533,11 +1532,11 @@ function ColumnAddBar({ dayKey, onFiles }) {
           }
         }}
       />
-      <div className="pointer-events-none h-10 bg-gradient-to-t from-white/95 to-transparent" />
+      <div className="pointer-events-none h-10" style={{ background: `linear-gradient(to top, ${DESIGN.colors.primaryBg}, transparent)` }} />
       <div className="absolute left-3 right-3 bottom-3">
         <button
           onClick={() => inputRef.current?.click()}
-          className={`w-full py-3 ${DESIGN.radius.card} bg-neutral-100 text-neutral-800 ${DESIGN.borders.ring} ${DESIGN.shadows.button} hover:bg-neutral-200 active:scale-[0.99] text-2xl leading-none`}
+          className={`w-full py-3 ${DESIGN.radius.card} border-2 border-white text-white hover:bg-white/10 active:scale-[0.99] text-2xl leading-none font-bold transition-colors`}
           title="add images"
           aria-label="add images"
         >
