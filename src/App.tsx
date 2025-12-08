@@ -3,9 +3,6 @@ import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X,
-  Calendar,
-  Link as LinkIcon,
-  Filter,
   HelpCircle,
   Star,
   ChevronRight,
@@ -32,48 +29,17 @@ import {
   deleteObject,
 } from 'firebase/storage';
 
-// ========== DESIGN SYSTEM - EDIT HERE ==========
+// ========== DESIGN SYSTEM - POSTBILLS ==========
 const DESIGN = {
   colors: {
-    primary: 'red',
-    primaryShade: '600',
-    primaryHover: '500',
-    todayStripe1: '#fda4af', // Darker pink stripe
-    todayStripe2: '#fecdd3', // Lighter pink stripe
-    todayStripeWidth: '10px', // Width of each stripe
-    background: 'from-rose-50 via-rose-100 to-white',
-  },
-  spacing: {
-    columnGapNarrow: 'gap-3',
-    columnGapWide: 'gap-4',
-    columnGapFilteredNarrow: 'gap-4',
-    columnGapFilteredWide: 'gap-6',
-    containerPaddingNarrow: 'px-3',
-    containerPaddingWide: 'px-4',
-    itemSpacing: 'space-y-4',
-  },
-  radius: {
-    column: 'rounded-xl',
-    image: 'rounded-lg',
-    button: 'rounded-full',
-    card: 'rounded-lg',
-    modal: 'rounded-2xl',
+    mainBlue: '#0037ae',
+    white: '#ffffff',
   },
   fonts: {
-    family:
-      "'DM Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-    casing: 'lowercase',
-  },
-  shadows: {
-    column: 'shadow-lg',
-    image: 'shadow-2xl',
-    button: 'shadow',
-    card: 'shadow-xl',
-  },
-  borders: {
-    column: 'border',
-    columnColor: 'border-neutral-200',
-    ring: 'ring-1 ring-neutral-300',
+    logo: "'Allerta Stencil', sans-serif",
+    heading: "'Andale Mono', monospace",
+    body: "'DM Mono', monospace",
+    nav: "'Roboto Mono', monospace",
   },
 };
 // ========== END DESIGN SYSTEM ==========
@@ -84,20 +50,20 @@ const todayAtMidnight = () => {
   d.setHours(0, 0, 0, 0);
   return d;
 };
-const fmtKey = (d) => d.toISOString().slice(0, 10);
-const fmtMD = (d) =>
+const fmtKey = (d: Date) => d.toISOString().slice(0, 10);
+const fmtMD = (d: Date) =>
   `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(
     2,
     '0'
   )}`;
-const fmtDOW = (d) => d.toLocaleDateString(undefined, { weekday: 'long' });
-const fmtDOWShort = (d) =>
-  (d.toLocaleDateString('en-US', { weekday: 'short' }) || '').slice(0, 3);
+const fmtDOW = (d: Date) => d.toLocaleDateString(undefined, { weekday: 'long' });
+const fmtDOWShort = (d: Date) =>
+  (d.toLocaleDateString('en-US', { weekday: 'short' }) || '').slice(0, 3).toUpperCase();
 const uid = () => `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-const genRange = (future) => {
+const genRange = (future: number) => {
   const s = new Date(todayAtMidnight().getTime() - 30 * DAY_MS),
     e = new Date(todayAtMidnight().getTime() + future * DAY_MS),
-    a = [];
+    a: Date[] = [];
   for (let t = s.getTime(); t <= e.getTime(); t += DAY_MS) a.push(new Date(t));
   return a;
 };
@@ -105,17 +71,17 @@ const genRange = (future) => {
 const FAVICON_DATA_URL =
   'data:image/svg+xml;utf8,' +
   encodeURIComponent(
-    "<?xml version=\"1.0\" encoding=\"UTF-8\"?><svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='#dc2626'/><rect x='16' y='20' width='32' height='28' rx='5' fill='#fff'/><rect x='16' y='20' width='32' height='8' rx='5' fill='#fee2e2'/><circle cx='24' cy='14' r='4' fill='#fff'/><circle cx='40' cy='14' r='4' fill='#fff'/></svg>"
+    "<?xml version=\"1.0\" encoding=\"UTF-8\"?><svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='#0037ae'/><rect x='16' y='20' width='32' height='28' rx='5' fill='#fff'/><rect x='16' y='20' width='32' height='8' rx='5' fill='#e0e7ff'/><circle cx='24' cy='14' r='4' fill='#fff'/><circle cx='40' cy='14' r='4' fill='#fff'/></svg>"
   );
 
-async function fileToDataUrlCompressed(file, maxWidth = 1400) {
-  const dataUrl = await new Promise((res, rej) => {
+async function fileToDataUrlCompressed(file: File, maxWidth = 1400) {
+  const dataUrl = await new Promise<string>((res, rej) => {
     const r = new FileReader();
     r.onload = () => res(String(r.result));
     r.onerror = rej;
     r.readAsDataURL(file);
   });
-  return await new Promise((res) => {
+  return await new Promise<string>((res) => {
     const img = new Image();
     img.onload = () => {
       const s = Math.min(1, maxWidth / img.width),
@@ -124,7 +90,7 @@ async function fileToDataUrlCompressed(file, maxWidth = 1400) {
       const c = document.createElement('canvas');
       c.width = w;
       c.height = h;
-      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      c.getContext('2d')!.drawImage(img, 0, 0, w, h);
       res(c.toDataURL('image/jpeg', 0.88));
     };
     img.onerror = () => res(dataUrl);
@@ -141,9 +107,9 @@ const FIREBASE_CONFIG = {
   appId: '1:1080772011295:web:6341c33fd257799ada7c2a',
 };
 
-let app,
-  db,
-  storage,
+let app: ReturnType<typeof initializeApp> | undefined,
+  db: ReturnType<typeof getFirestore> | undefined,
+  storage: ReturnType<typeof getStorage> | undefined,
   firebaseReady = false;
 try {
   app = initializeApp(FIREBASE_CONFIG);
@@ -163,22 +129,68 @@ function useColW() {
     window.addEventListener('resize', on);
     return () => window.removeEventListener('resize', on);
   }, []);
-  let populated = 320;
-  if (w < 640) populated = Math.round(w * 0.38);
-  else if (w < 1024) populated = 288;
-  const empty = Math.max(Math.round(populated * 0.56), 100);
+  // Figma shows populated columns at 166px and empty at 117px
+  let populated = 166;
+  if (w < 640) populated = Math.round(w * 0.42);
+  else if (w < 1024) populated = 166;
+  else populated = 180;
+  const empty = Math.max(Math.round(populated * 0.7), 100);
   return { populated, empty, isNarrow: w < 640 };
 }
 
-export default function Eventi() {
+// SVG Icons matching Figma design
+const LinkRotatedIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="rotate-[-45deg]">
+    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+const StarIcon = ({ filled = false }) => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+  </svg>
+);
+
+const FilterIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+  </svg>
+);
+
+const PlusIcon = () => (
+  <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
+    <rect x="7" y="0" width="3" height="17" fill="white"/>
+    <rect x="0" y="7" width="17" height="3" fill="white"/>
+  </svg>
+);
+
+interface ImageItem {
+  id: string;
+  name: string;
+  dataUrl: string;
+  fav: boolean;
+  note: string;
+  _order?: number;
+}
+
+interface Board {
+  [key: string]: ImageItem[];
+}
+
+interface Viewer {
+  url: string;
+  name: string;
+  dayKey: string;
+  id: string;
+  fav: boolean;
+  note: string;
+}
+
+export default function PostBills() {
   const [futureShown, setFutureShown] = useState(60);
   const days = useMemo(() => genRange(futureShown), [futureShown]);
   const todayKey = fmtKey(todayAtMidnight());
-
-  // Find today's index to start rendering from there
-  const todayIndex = useMemo(() => {
-    return days.findIndex((d) => fmtKey(d) === todayKey);
-  }, [days, todayKey]);
 
   const initialSlug = useMemo(() => {
     const p = window.location.pathname.replace(/^\/+|\/+$/g, '');
@@ -196,7 +208,6 @@ export default function Eventi() {
 
   const [slug, setSlug] = useState(() => {
     if (initialSlug) return initialSlug;
-    // Only auto-load last slug if user has been here before
     if (hasVisitedBefore) {
       try {
         return localStorage.getItem('eventi-last-slug') || '';
@@ -221,10 +232,13 @@ export default function Eventi() {
     !initialSlug && !hasVisitedBefore
   );
 
-  const [board, setBoard] = useState({});
-  const [viewer, setViewer] = useState(null);
-  const [fileOver, setFileOver] = useState(null);
-  const [externalHover, setExternalHover] = useState({
+  const [board, setBoard] = useState<Board>({});
+  const [viewer, setViewer] = useState<Viewer | null>(null);
+  const [fileOver, setFileOver] = useState<string | null>(null);
+  const [externalHover, setExternalHover] = useState<{
+    dayKey: string | null;
+    index: number | null;
+  }>({
     dayKey: null,
     index: null,
   });
@@ -232,7 +246,10 @@ export default function Eventi() {
   const [showFavOnly, setShowFavOnly] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    dayKey: string;
+    id: string;
+  } | null>(null);
   const [copyFeedback, setCopyFeedback] = useState({
     show: false,
     type: '',
@@ -240,12 +257,12 @@ export default function Eventi() {
     y: 0,
   });
 
-  const scrollRef = useRef(null);
-  const columnRefs = useRef({});
-  const listRefs = useRef({});
-  const headerRef = useRef(null);
-  const [headerH, setHeaderH] = useState(64);
-  const anchorRef = useRef(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const columnRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+  const listRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+  const headerRef = useRef<HTMLDivElement>(null);
+  const [headerH, setHeaderH] = useState(96);
+  const anchorRef = useRef<string | null>(null);
 
   const isTouch = useMemo(
     () =>
@@ -257,13 +274,20 @@ export default function Eventi() {
   );
 
   useEffect(() => {
-    const l = document.createElement('link');
-    l.rel = 'stylesheet';
-    l.href =
-      'https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&display=swap';
-    document.head.appendChild(l);
-    document.title = "bori's eventi";
-    let link = document.querySelector("link[rel='icon']");
+    // Load fonts
+    const fonts = [
+      'https://fonts.googleapis.com/css2?family=Allerta+Stencil&display=swap',
+      'https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&display=swap',
+      'https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700&display=swap',
+    ];
+    fonts.forEach((href) => {
+      const l = document.createElement('link');
+      l.rel = 'stylesheet';
+      l.href = href;
+      document.head.appendChild(l);
+    });
+    document.title = 'POSTBILLS';
+    let link = document.querySelector("link[rel='icon']") as HTMLLinkElement;
     if (!link) {
       link = document.createElement('link');
       link.rel = 'icon';
@@ -292,7 +316,7 @@ export default function Eventi() {
   const { populated, empty, isNarrow } = useColW();
 
   const visibleDays = useMemo(() => {
-    const f = (d) => {
+    const f = (d: Date) => {
       const k = fmtKey(d),
         a = board[k] || [],
         today = k === todayKey,
@@ -323,7 +347,7 @@ export default function Eventi() {
   }, [days]);
 
   useEffect(() => {
-    if (!firebaseReady || !slug) return;
+    if (!firebaseReady || !slug || !db) return;
     const boardRef = doc(db, 'boards', slug);
     setDoc(
       boardRef,
@@ -334,7 +358,7 @@ export default function Eventi() {
     const unsub = onSnapshot(
       collection(boardRef, 'items'),
       (snap) => {
-        const by = {};
+        const by: Board = {};
         snap.forEach((ds) => {
           const it = ds.data();
           (by[it.dayKey] || (by[it.dayKey] = [])).push({
@@ -360,12 +384,11 @@ export default function Eventi() {
   }, [slug, days]);
 
   useEffect(() => {
-    // Use the EXACT same function as the "today" button
     scrollTo(todayKey);
   }, []);
 
   useEffect(() => {
-    const u = () => setHeaderH(headerRef.current?.offsetHeight || 64);
+    const u = () => setHeaderH(headerRef.current?.offsetHeight || 96);
     u();
     window.addEventListener('resize', u);
     return () => window.removeEventListener('resize', u);
@@ -373,7 +396,7 @@ export default function Eventi() {
 
   useEffect(() => {
     if (!viewer) return;
-    const on = (e) => {
+    const on = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setViewer(null);
     };
     window.addEventListener('keydown', on);
@@ -381,7 +404,7 @@ export default function Eventi() {
   }, [viewer]);
 
   useEffect(() => {
-    const stop = (e) => {
+    const stop = (e: DragEvent) => {
       if (e.dataTransfer?.types?.includes('Files')) {
         e.preventDefault();
         e.stopPropagation();
@@ -391,7 +414,7 @@ export default function Eventi() {
       setFileOver(null);
       setExternalHover({ dayKey: null, index: null });
     };
-    const onDrop = (e) => {
+    const onDrop = (e: DragEvent) => {
       stop(e);
       clear();
     };
@@ -411,7 +434,7 @@ export default function Eventi() {
   useEffect(() => {
     const s = scrollRef.current;
     if (!s) return;
-    const h = (e) => {
+    const h = (e: TouchEvent) => {
       if (isDragging) e.preventDefault();
     };
     s.addEventListener('touchmove', h, { passive: false });
@@ -427,10 +450,10 @@ export default function Eventi() {
     prevFilters.current = { hideEmpty, showFavOnly };
   }, [hideEmpty, showFavOnly, todayKey]);
 
-  const isPast = (k) => k < todayKey;
-  const isToday = (k) => k === todayKey;
+  const isPast = (k: string) => k < todayKey;
+  const isToday = (k: string) => k === todayKey;
 
-  const scrollTo = (k) => {
+  const scrollTo = (k: string) => {
     const el = columnRefs.current[k];
     el?.scrollIntoView({
       behavior: 'smooth',
@@ -439,23 +462,14 @@ export default function Eventi() {
     });
   };
 
-  const scrollToCenter = (k) => {
-    const el = columnRefs.current[k];
-    el?.scrollIntoView({
-      behavior: 'instant',
-      inline: 'center',
-      block: 'nearest',
-    });
-  };
-
-  async function removeImage(dayKey, id) {
+  async function removeImage(dayKey: string, id: string) {
     setBoard((p) => ({
       ...p,
       [dayKey]: (p[dayKey] || []).filter((x) => x.id !== id),
     }));
     setDeleteConfirm(null);
 
-    if (firebaseReady) {
+    if (firebaseReady && db && storage) {
       try {
         await deleteDoc(doc(db, 'boards', slug, 'items', id));
       } catch {}
@@ -465,7 +479,7 @@ export default function Eventi() {
     }
   }
 
-  async function updateImageNote(dayKey, id, note) {
+  async function updateImageNote(dayKey: string, id: string, note: string) {
     setBoard((p) => {
       const a = Array.from(p[dayKey] || []);
       const i = a.findIndex((x) => x.id === id);
@@ -474,7 +488,7 @@ export default function Eventi() {
       return { ...p, [dayKey]: a };
     });
 
-    if (firebaseReady) {
+    if (firebaseReady && db) {
       try {
         await setDoc(
           doc(db, 'boards', slug, 'items', id),
@@ -487,7 +501,7 @@ export default function Eventi() {
     }
   }
 
-  async function toggleFav(dayKey, id, next) {
+  async function toggleFav(dayKey: string, id: string, next: boolean) {
     setBoard((p) => {
       const a = Array.from(p[dayKey] || []);
       const i = a.findIndex((x) => x.id === id);
@@ -498,7 +512,7 @@ export default function Eventi() {
       return { ...p, [dayKey]: [...fav, ...rest] };
     });
 
-    if (firebaseReady) {
+    if (firebaseReady && db) {
       try {
         const cur = board[dayKey] || [];
         const arr = cur.map((x) => (x.id === id ? { ...x, fav: next } : x));
@@ -520,17 +534,16 @@ export default function Eventi() {
     }
   }
 
-  async function addFilesToDay(dayKey, files, insertIndex = null) {
+  async function addFilesToDay(dayKey: string, files: FileList, insertIndex: number | null = null) {
     const list = Array.from(files || []).filter((f) =>
       f.type?.startsWith('image/')
     );
     if (!list.length) return;
 
     const urls = await Promise.all(list.map((f) => fileToDataUrlCompressed(f)));
-    const entries = list.map((f, i) => ({
+    const entries: ImageItem[] = list.map((f, i) => ({
       id: uid(),
       name: f.name,
-      createdAt: Date.now(),
       dataUrl: urls[i],
       fav: false,
       note: '',
@@ -548,7 +561,7 @@ export default function Eventi() {
       return { ...p, [dayKey]: n };
     });
 
-    if (firebaseReady) {
+    if (firebaseReady && db && storage) {
       try {
         if (cur.length && from < cur.length) {
           const sh = writeBatch(db);
@@ -585,12 +598,11 @@ export default function Eventi() {
     }
   }
 
-  async function copyImageToClipboard(item, event) {
+  async function copyImageToClipboard(item: ImageItem | Viewer, event?: React.MouseEvent) {
     try {
-      const dataUrl = item.dataUrl || item.url;
+      const dataUrl = item.dataUrl || (item as Viewer).url;
       if (!dataUrl) throw new Error('No image data available');
 
-      // Try to copy actual image to clipboard
       try {
         const response = await fetch(dataUrl);
         const blob = await response.blob();
@@ -599,7 +611,7 @@ export default function Eventi() {
         ]);
 
         if (event) {
-          const rect = event.currentTarget.getBoundingClientRect();
+          const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
           setCopyFeedback({
             show: true,
             type: 'image',
@@ -612,8 +624,7 @@ export default function Eventi() {
           );
         }
         return;
-      } catch (clipboardErr) {
-        // Fallback: download if clipboard doesn't work
+      } catch {
         const link = document.createElement('a');
         link.href = dataUrl;
         link.download = item.name || 'image.jpg';
@@ -622,7 +633,7 @@ export default function Eventi() {
         document.body.removeChild(link);
 
         if (event) {
-          const rect = event.currentTarget.getBoundingClientRect();
+          const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
           setCopyFeedback({
             show: true,
             type: 'image',
@@ -641,18 +652,18 @@ export default function Eventi() {
     }
   }
 
-  function getImageLink(dayKey, id) {
+  function getImageLink(dayKey: string, id: string) {
     const u = new URL(window.location.href);
     u.searchParams.set('img', `${dayKey}:${id}`);
     return u.toString();
   }
 
-  async function copyImageLink(dayKey, id, event) {
+  async function copyImageLink(dayKey: string, id: string, event?: React.MouseEvent) {
     const link = getImageLink(dayKey, id);
     try {
       await navigator.clipboard.writeText(link);
       if (event) {
-        const rect = event.currentTarget.getBoundingClientRect();
+        const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
         setCopyFeedback({
           show: true,
           type: 'link',
@@ -691,13 +702,13 @@ export default function Eventi() {
     }
   }, [board]);
 
-  const computeInsert = (e, dayKey) => {
+  const computeInsert = (e: React.DragEvent, dayKey: string) => {
     let at = (board[dayKey] || []).length;
     const list = listRefs.current[dayKey];
     if (list) {
       const rect = list.getBoundingClientRect();
       const y = e.clientY - rect.top + list.scrollTop;
-      const kids = Array.from(list.querySelectorAll('[data-item-id]'));
+      const kids = Array.from(list.querySelectorAll('[data-item-id]')) as HTMLElement[];
       const idx = kids.findIndex(
         (ch) => y < ch.offsetTop + ch.offsetHeight / 2
       );
@@ -706,7 +717,7 @@ export default function Eventi() {
     return at;
   };
 
-  function onExtOver(e, dayKey) {
+  function onExtOver(e: React.DragEvent, dayKey: string) {
     if (e.dataTransfer?.types?.includes('Files')) {
       e.preventDefault();
       e.stopPropagation();
@@ -716,13 +727,13 @@ export default function Eventi() {
     }
   }
 
-  function onExtLeave(_, dayKey) {
+  function onExtLeave(_: React.DragEvent, dayKey: string) {
     if (fileOver === dayKey) setFileOver(null);
     if (externalHover.dayKey === dayKey)
       setExternalHover({ dayKey: null, index: null });
   }
 
-  async function onExtDrop(e, dayKey) {
+  async function onExtDrop(e: React.DragEvent, dayKey: string) {
     const clear = () => {
       setFileOver(null);
       setExternalHover({ dayKey: null, index: null });
@@ -743,7 +754,7 @@ export default function Eventi() {
     } else clear();
   }
 
-  async function onDragEnd(result) {
+  async function onDragEnd(result: any) {
     setIsDragging(false);
     const { source, destination } = result;
     if (!destination) return;
@@ -763,7 +774,7 @@ export default function Eventi() {
       return n;
     });
 
-    if (firebaseReady) {
+    if (firebaseReady && db) {
       const moved = (board[sKey] || [])[source.index];
       if (!moved) return;
 
@@ -773,7 +784,7 @@ export default function Eventi() {
       dArr.splice(destination.index, 0, moved);
 
       const b = writeBatch(db);
-      const write = (k, arr) =>
+      const write = (k: string, arr: ImageItem[]) =>
         arr.forEach((it, idx) =>
           b.update(doc(db, 'boards', slug, 'items', it.id), {
             order: idx,
@@ -789,38 +800,26 @@ export default function Eventi() {
     }
   }
 
-  const GapSeparator = ({ thin = false }) => (
+  const GapSeparator = ({ thin = false }: { thin?: boolean }) => (
     <div
-      className={`${thin ? 'mx-3' : 'mx-6'} h-full flex items-center`}
+      className={`${thin ? 'mx-2' : 'mx-4'} h-full flex items-center`}
       aria-hidden
     >
       <div
-        className={`${thin ? 'w-[2px]' : 'w-[3px]'} bg-neutral-300/80`}
+        className={`${thin ? 'w-[2px]' : 'w-[3px]'} bg-white/30`}
         style={{ height: '80%' }}
       />
     </div>
   );
 
-  const Placeholder = ({ onDropBlock, onDragOverBlock }) => (
+  const Placeholder = ({ onDropBlock, onDragOverBlock }: { onDropBlock: (e: React.DragEvent) => void; onDragOverBlock: (e: React.DragEvent) => void }) => (
     <div
-      className="relative z-20 h-10 rounded-md border-2 border-dashed border-neutral-400 bg-neutral-100"
+      className="relative z-20 h-10 rounded-[5px] border-2 border-dashed border-white/60 bg-white/10"
       aria-label="Drop position"
       onDragOver={onDragOverBlock}
       onDrop={onDropBlock}
       onDragEnter={onDragOverBlock}
     />
-  );
-
-  const trackGap = useMemo(
-    () =>
-      hideEmpty || showFavOnly
-        ? isNarrow
-          ? `${DESIGN.spacing.columnGapFilteredNarrow} ${DESIGN.spacing.containerPaddingNarrow}`
-          : `${DESIGN.spacing.columnGapFilteredWide} ${DESIGN.spacing.containerPaddingWide}`
-        : isNarrow
-        ? `${DESIGN.spacing.columnGapNarrow} ${DESIGN.spacing.containerPaddingNarrow}`
-        : `${DESIGN.spacing.columnGapWide} ${DESIGN.spacing.containerPaddingWide}`,
-    [hideEmpty, showFavOnly, isNarrow]
   );
 
   const [copied, setCopied] = useState(false);
@@ -842,81 +841,103 @@ export default function Eventi() {
 
   return (
     <div
-      className={`w-full fixed inset-0 overflow-hidden bg-gradient-to-br ${DESIGN.colors.background} text-neutral-900 flex flex-col ${DESIGN.fonts.casing}`}
-      style={{ fontFamily: DESIGN.fonts.family }}
+      className="w-full fixed inset-0 overflow-hidden flex flex-col"
+      style={{ 
+        backgroundColor: DESIGN.colors.mainBlue,
+        fontFamily: DESIGN.fonts.body,
+      }}
     >
+      {/* Header */}
       <div
         ref={headerRef}
-        className="sticky top-0 z-20 bg-white/80 md:backdrop-blur border-b border-neutral-200"
+        className="shrink-0 border-b border-white/20"
+        style={{ boxShadow: '0px 4px 4px 0px rgba(0,0,0,0.25)' }}
       >
-        <div className="w-full px-4 py-3 flex items-center gap-3">
+        <div className="w-full px-[10px] pt-[10px] pb-[20px] flex items-center gap-[15px]">
+          {/* Logo */}
           <button
             onClick={() => setShowSlugPrompt(true)}
-            className="flex items-center gap-3 min-w-[140px] focus:outline-none"
+            className="flex items-center focus:outline-none shrink-0"
             title="set board name"
           >
             <div
-              className={`w-8 h-8 ${DESIGN.radius.button} bg-${DESIGN.colors.primary}-${DESIGN.colors.primaryShade} grid place-items-center shrink-0`}
+              className="text-white leading-[38px] tracking-[-3px]"
+              style={{ 
+                fontFamily: DESIGN.fonts.logo,
+                fontSize: '50px',
+              }}
             >
-              <Calendar className="w-4 h-4 text-white" />
-            </div>
-            <div className="font-semibold leading-tight text-left">
-              <span className="block sm:inline">bori's</span>
-              <span className="block sm:inline sm:ml-1">eventi</span>
+              <div>POST</div>
+              <div>BILLS</div>
             </div>
           </button>
-          <div className="ml-auto flex items-center gap-2">
-            <button
-              onClick={() => scrollTo(todayKey)}
-              className={`px-3 py-1.5 ${DESIGN.radius.button} text-sm font-medium bg-${DESIGN.colors.primary}-${DESIGN.colors.primaryShade} text-white hover:bg-${DESIGN.colors.primary}-${DESIGN.colors.primaryHover} ${DESIGN.shadows.button}`}
-              title="jump to today"
-            >
-              today
-            </button>
+
+          {/* Navigation */}
+          <div className="flex-1 flex items-center justify-end gap-[10px]">
+            {/* Link button */}
             <button
               onClick={copyShare}
-              className={`p-2 ${DESIGN.radius.button} bg-white ${DESIGN.borders.ring} hover:bg-neutral-50 ${DESIGN.shadows.button}`}
+              className="w-[38px] h-[38px] rounded-[6.624px] border-[1.25px] border-white flex items-center justify-center text-white hover:bg-white/10 transition-colors"
               title="copy link"
               aria-label="copy link"
             >
-              <LinkIcon className="w-4 h-4" />
+              <LinkRotatedIcon />
             </button>
-            {copied && <span className="text-xs text-green-700">copied ✓</span>}
+            {copied && <span className="text-xs text-white/80">copied ✓</span>}
+
+            {/* Star/Favorites button */}
+            <button
+              onClick={() => setShowFavOnly((v) => !v)}
+              className={`w-[38px] h-[38px] rounded-[6.624px] border-[1.25px] border-white flex items-center justify-center transition-colors ${
+                showFavOnly
+                  ? 'bg-white text-[#0037ae]'
+                  : 'text-white hover:bg-white/10'
+              }`}
+              title="show only favorites"
+              aria-label="show only favorites"
+            >
+              <StarIcon filled={showFavOnly} />
+            </button>
+
+            {/* Filter button */}
             <button
               onClick={() => {
                 anchorRef.current = null;
                 setHideEmpty((v) => !v);
               }}
-              className={`p-2 ${DESIGN.radius.button} ${
-                DESIGN.shadows.button
-              } ${
+              className={`w-[38px] h-[38px] rounded-[6.624px] border-[1.25px] border-white flex items-center justify-center transition-colors ${
                 hideEmpty
-                  ? `bg-${DESIGN.colors.primary}-${DESIGN.colors.primaryShade} text-white hover:bg-${DESIGN.colors.primary}-${DESIGN.colors.primaryHover}`
-                  : `bg-white ${DESIGN.borders.ring} text-neutral-800 hover:bg-neutral-50`
+                  ? 'bg-white text-[#0037ae]'
+                  : 'text-white hover:bg-white/10'
               }`}
               title="toggle hide empty days"
               aria-label="toggle hide empty days"
             >
-              <Filter className="w-4 h-4" />
+              <FilterIcon />
             </button>
+
+            {/* Today button */}
             <button
-              onClick={() => setShowFavOnly((v) => !v)}
-              className={`p-2 ${DESIGN.radius.button} ${
-                DESIGN.shadows.button
-              } ${
-                showFavOnly
-                  ? `bg-${DESIGN.colors.primary}-${DESIGN.colors.primaryShade} text-white hover:bg-${DESIGN.colors.primary}-${DESIGN.colors.primaryHover}`
-                  : `bg-white ${DESIGN.borders.ring} text-neutral-800 hover:bg-neutral-50`
-              }`}
-              title="show only favorites"
-              aria-label="show only favorites"
+              onClick={() => scrollTo(todayKey)}
+              className="h-[38px] px-[19.872px] py-[6.624px] rounded-[6.624px] bg-white flex items-center justify-center hover:bg-white/90 transition-colors"
+              title="jump to today"
             >
-              <Star className="w-4 h-4" />
+              <span
+                className="uppercase font-bold tracking-[0.33px]"
+                style={{ 
+                  fontFamily: DESIGN.fonts.nav,
+                  fontSize: '19.872px',
+                  color: DESIGN.colors.mainBlue,
+                }}
+              >
+                today
+              </span>
             </button>
           </div>
         </div>
       </div>
 
+      {/* Calendar area */}
       <DragDropContext
         onDragStart={() => {
           setIsDragging(true);
@@ -943,17 +964,12 @@ export default function Eventi() {
           }}
           className="overflow-x-auto overflow-y-hidden"
         >
-          <div className={`h-full flex items-stretch ${trackGap} py-4`}>
+          <div className="h-full flex items-start gap-[8px] pl-0 pt-[7px] pr-[10px]">
             {visibleDays.map((d, i) => {
               const key = fmtKey(d);
               const items = board[key] || [];
               const has = items.length > 0;
               const w = has ? populated : empty;
-
-              // Stripe background for today - matching original code style
-              const baseClass = isToday(key)
-                ? `repeating-linear-gradient(45deg, ${DESIGN.colors.todayStripe1} 0px, ${DESIGN.colors.todayStripe1} ${DESIGN.colors.todayStripeWidth}, ${DESIGN.colors.todayStripe2} ${DESIGN.colors.todayStripeWidth}, ${DESIGN.colors.todayStripe2} calc(${DESIGN.colors.todayStripeWidth} * 2))`
-                : '#ffffff';
 
               let sep = null;
               if ((hideEmpty || showFavOnly) && i > 0) {
@@ -993,36 +1009,67 @@ export default function Eventi() {
                         onTouchMove={(e) => {
                           if (isDragging) e.preventDefault();
                         }}
-                        className={`relative h-full flex flex-col ${
-                          DESIGN.radius.column
-                        } ${DESIGN.borders.column} ${
+                        className={`relative h-full flex flex-col rounded-t-[10px] border border-white p-[6px] gap-[10px] transition-all duration-200 ease-out ${
                           fileOver === key
-                            ? 'border-4 border-dashed border-neutral-400'
-                            : DESIGN.borders.columnColor
-                        } ${
-                          DESIGN.shadows.column
-                        } transition-all duration-200 ease-out ${base}`}
+                            ? 'border-2 border-dashed border-white/80'
+                            : ''
+                        }`}
+                        data-column-key={key}
                       >
-                        <div className="relative z-20 shrink-0 px-3 pt-3 mb-4">
-                          <div
-                            className={`w-full px-3 py-2 ${DESIGN.radius.card} bg-white/90 ${DESIGN.borders.ring} ${DESIGN.shadows.button} text-center`}
-                          >
-                            <div
-                              className={`text-base font-semibold leading-tight ${
-                                DESIGN.fonts.casing
-                              } ${isToday(key) ? 'text-neutral-900' : ''}`}
+                        {/* Inner shadow overlay */}
+                        <div 
+                          className="absolute inset-0 pointer-events-none rounded-t-[10px]"
+                          style={{ boxShadow: 'inset 2px 2px 3.6px 0px rgba(255,255,255,0.24)' }}
+                        />
+
+                        {/* Header */}
+                        <div className="relative z-10 shrink-0 w-full">
+                          {has || isToday(key) ? (
+                            // White filled header for populated columns or today
+                            <div 
+                              className="w-full rounded-[5px] bg-white flex flex-col items-center gap-px p-[5px]"
+                              style={{ color: DESIGN.colors.mainBlue }}
                             >
-                              {has ? fmtDOW(d) : fmtDOWShort(d)}
+                              <div
+                                className="uppercase tracking-[0.2488px] leading-[19.5px]"
+                                style={{ fontFamily: "'Andale Mono', monospace", fontSize: '18px' }}
+                              >
+                                {has ? fmtDOW(d).toUpperCase() : fmtDOWShort(d)}
+                              </div>
+                              <div
+                                className="uppercase tracking-[0.2488px] leading-[19.5px]"
+                                style={{ fontFamily: DESIGN.fonts.body, fontSize: '13px', fontWeight: 500 }}
+                              >
+                                {fmtMD(d)}
+                              </div>
                             </div>
-                            <div className="text-xs opacity-70">{fmtMD(d)}</div>
-                          </div>
+                          ) : (
+                            // Border-only header for empty columns
+                            <div 
+                              className="w-full rounded-[5px] border border-white flex flex-col items-center gap-px p-[6px] text-white"
+                            >
+                              <div
+                                className="uppercase tracking-[0.2488px] leading-[19.5px]"
+                                style={{ fontFamily: "'Andale Mono', monospace", fontSize: '18px' }}
+                              >
+                                {fmtDOWShort(d)}
+                              </div>
+                              <div
+                                className="uppercase tracking-[0.2488px] leading-[19.5px]"
+                                style={{ fontFamily: DESIGN.fonts.body, fontSize: '13px', fontWeight: 500 }}
+                              >
+                                {fmtMD(d)}
+                              </div>
+                            </div>
+                          )}
                         </div>
 
+                        {/* Images area */}
                         <div
                           ref={(el) => {
                             listRefs.current[key] = el;
                           }}
-                          className={`relative flex-1 overflow-y-auto px-3 pb-28 ${DESIGN.spacing.itemSpacing}`}
+                          className="relative flex-1 overflow-y-auto overflow-x-hidden flex flex-col gap-[10px]"
                           onDragEnter={(e) => onExtOver(e, key)}
                           onDragOver={(e) => onExtOver(e, key)}
                           onDrop={(e) => {
@@ -1038,7 +1085,7 @@ export default function Eventi() {
                           }}
                         >
                           {isPast(key) && (
-                            <div className="pointer-events-none absolute inset-0 rounded-md bg-neutral-400/45 z-10" />
+                            <div className="pointer-events-none absolute inset-0 rounded-[5px] bg-[#0037ae]/60 z-10" />
                           )}
                           {render.length > 0 && phIdx === 0 && (
                             <Placeholder
@@ -1087,7 +1134,7 @@ export default function Eventi() {
                                     {...provided.draggableProps}
                                     {...provided.dragHandleProps}
                                     data-item-id={it.id}
-                                    className={`group relative select-none ${
+                                    className={`group relative select-none shrink-0 ${
                                       snap.isDragging ? 'rotate-1' : ''
                                     }`}
                                     style={{
@@ -1095,10 +1142,10 @@ export default function Eventi() {
                                       touchAction: isDragging ? 'none' : 'auto',
                                     }}
                                   >
-                                    <img
-                                      src={it.dataUrl}
-                                      alt={it.name || 'flyer'}
-                                      className={`w-full h-auto ${DESIGN.radius.image} ${DESIGN.borders.ring} ${DESIGN.shadows.image} cursor-pointer`}
+                                    {/* Event Card */}
+                                    <div 
+                                      className="relative w-full bg-white rounded-[5px] overflow-hidden cursor-pointer"
+                                      style={{ boxShadow: '0px 4px 4px 0px rgba(0,0,0,0.25)' }}
                                       onClick={() =>
                                         setViewer({
                                           url: it.dataUrl,
@@ -1109,15 +1156,27 @@ export default function Eventi() {
                                           note: it.note || '',
                                         })
                                       }
-                                      draggable={false}
-                                      onDragStart={(e) => e.preventDefault()}
-                                      style={{
-                                        WebkitUserDrag: 'none',
-                                        userSelect: 'none',
-                                        WebkitTouchCallout: 'none',
-                                      }}
-                                    />
+                                    >
+                                      <img
+                                        src={it.dataUrl}
+                                        alt={it.name || 'flyer'}
+                                        className="w-full h-auto object-cover"
+                                        draggable={false}
+                                        onDragStart={(e) => e.preventDefault()}
+                                        style={{
+                                          WebkitUserDrag: 'none',
+                                          userSelect: 'none',
+                                          WebkitTouchCallout: 'none',
+                                        } as React.CSSProperties}
+                                      />
+                                      {/* Inner shadow on card */}
+                                      <div 
+                                        className="absolute inset-0 pointer-events-none"
+                                        style={{ boxShadow: 'inset 1px 2px 2.8px 0px rgba(255,255,255,0.34)' }}
+                                      />
+                                    </div>
 
+                                    {/* Delete button */}
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation();
@@ -1126,30 +1185,27 @@ export default function Eventi() {
                                           id: it.id,
                                         });
                                       }}
-                                      className={`absolute top-2 left-2 w-8 h-8 ${
-                                        DESIGN.radius.button
-                                      } bg-red-600 text-white shadow-md grid place-items-center transition-opacity ${
+                                      className={`absolute top-2 left-2 w-7 h-7 rounded-full bg-red-600 text-white shadow-md grid place-items-center transition-opacity ${
                                         isTouch
                                           ? 'opacity-0 pointer-events-none'
                                           : 'opacity-0 group-hover:opacity-100'
                                       }`}
                                       title="delete"
                                     >
-                                      <Trash2 className="w-4 h-4" />
+                                      <Trash2 className="w-3.5 h-3.5" />
                                     </button>
 
-                                    <div className="absolute top-2 right-2 flex flex-col gap-2">
+                                    {/* Action buttons */}
+                                    <div className="absolute top-2 right-2 flex flex-col gap-1.5">
                                       <button
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           toggleFav(key, it.id, !it.fav);
                                         }}
-                                        className={`w-8 h-8 ${
-                                          DESIGN.radius.button
-                                        } grid place-items-center transition-opacity ${
+                                        className={`w-7 h-7 rounded-full grid place-items-center transition-opacity shadow-md ${
                                           it.fav
-                                            ? `bg-${DESIGN.colors.primary}-${DESIGN.colors.primaryShade}`
-                                            : `bg-white ${DESIGN.borders.ring}`
+                                            ? 'bg-[#0037ae]'
+                                            : 'bg-white/90'
                                         } ${
                                           it.fav
                                             ? ''
@@ -1162,10 +1218,10 @@ export default function Eventi() {
                                         }
                                       >
                                         <Star
-                                          className="w-4 h-4"
+                                          className="w-3.5 h-3.5"
                                           {...(it.fav
                                             ? { color: 'white', fill: 'white' }
-                                            : {})}
+                                            : { color: '#0037ae' })}
                                         />
                                       </button>
 
@@ -1174,18 +1230,14 @@ export default function Eventi() {
                                           e.stopPropagation();
                                           copyImageToClipboard(it, e);
                                         }}
-                                        className={`w-8 h-8 ${
-                                          DESIGN.radius.button
-                                        } bg-white ${
-                                          DESIGN.borders.ring
-                                        } shadow-md grid place-items-center transition-opacity ${
+                                        className={`w-7 h-7 rounded-full bg-white/90 shadow-md grid place-items-center transition-opacity ${
                                           isTouch
                                             ? 'opacity-0 pointer-events-none'
                                             : 'opacity-0 group-hover:opacity-100'
                                         }`}
                                         title="download image"
                                       >
-                                        <Copy className="w-4 h-4" />
+                                        <Copy className="w-3.5 h-3.5 text-[#0037ae]" />
                                       </button>
 
                                       <button
@@ -1193,18 +1245,14 @@ export default function Eventi() {
                                           e.stopPropagation();
                                           copyImageLink(key, it.id, e);
                                         }}
-                                        className={`w-8 h-8 ${
-                                          DESIGN.radius.button
-                                        } bg-white ${
-                                          DESIGN.borders.ring
-                                        } shadow-md grid place-items-center transition-opacity ${
+                                        className={`w-7 h-7 rounded-full bg-white/90 shadow-md grid place-items-center transition-opacity ${
                                           isTouch
                                             ? 'opacity-0 pointer-events-none'
                                             : 'opacity-0 group-hover:opacity-100'
                                         }`}
                                         title="copy link to image"
                                       >
-                                        <Link2 className="w-4 h-4" />
+                                        <Link2 className="w-3.5 h-3.5 text-[#0037ae]" />
                                       </button>
                                     </div>
                                   </div>
@@ -1215,7 +1263,8 @@ export default function Eventi() {
                           {provided.placeholder}
                         </div>
 
-                        <div className="relative z-20">
+                        {/* Add button */}
+                        <div className="relative z-10 shrink-0">
                           <ColumnAddBar dayKey={key} onFiles={addFilesToDay} />
                         </div>
                       </div>
@@ -1228,7 +1277,7 @@ export default function Eventi() {
               <div className="flex items-center pr-4">
                 <button
                   onClick={() => setFutureShown((v) => Math.min(365, v + 60))}
-                  className={`p-3 ${DESIGN.radius.button} bg-${DESIGN.colors.primary}-${DESIGN.colors.primaryShade} text-white ${DESIGN.shadows.button} hover:bg-${DESIGN.colors.primary}-${DESIGN.colors.primaryHover}`}
+                  className="p-3 rounded-full bg-white text-[#0037ae] shadow-lg hover:bg-white/90"
                   title="load 60 more days"
                 >
                   <ChevronRight className="w-5 h-5" />
@@ -1239,6 +1288,7 @@ export default function Eventi() {
         </div>
       </DragDropContext>
 
+      {/* Image Viewer Modal */}
       {viewer && (
         <motion.div
           initial={{ opacity: 0 }}
@@ -1248,10 +1298,9 @@ export default function Eventi() {
           className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-8"
           onClick={() => setViewer(null)}
         >
-          {/* Close X button - visually separated at top right of screen */}
           <button
             onClick={() => setViewer(null)}
-            className={`fixed top-4 right-4 z-[60] w-12 h-12 ${DESIGN.radius.button} bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 grid place-items-center transition-all`}
+            className="fixed top-4 right-4 z-[60] w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 grid place-items-center transition-all"
             title="close"
             aria-label="close"
           >
@@ -1269,7 +1318,7 @@ export default function Eventi() {
               <img
                 src={viewer.url}
                 alt={viewer.name || 'flyer'}
-                className={`max-w-full max-h-[60vh] object-contain ${DESIGN.radius.column} ${DESIGN.shadows.image}`}
+                className="max-w-full max-h-[60vh] object-contain rounded-[10px] shadow-2xl"
               />
 
               <button
@@ -1277,11 +1326,7 @@ export default function Eventi() {
                   e.stopPropagation();
                   setDeleteConfirm({ dayKey: viewer.dayKey, id: viewer.id });
                 }}
-                className={`absolute top-3 left-3 z-10 w-10 h-10 ${
-                  DESIGN.radius.button
-                } bg-red-600 text-white ${
-                  DESIGN.shadows.button
-                } grid place-items-center ${
+                className={`absolute top-3 left-3 z-10 w-10 h-10 rounded-full bg-red-600 text-white shadow-lg grid place-items-center ${
                   isTouch ? '' : 'opacity-0 group-hover:opacity-100'
                 } transition-opacity`}
                 title="delete"
@@ -1301,19 +1346,17 @@ export default function Eventi() {
                     toggleFav(viewer.dayKey, viewer.id, !viewer.fav);
                     setViewer((v) => (v ? { ...v, fav: !v.fav } : v));
                   }}
-                  className={`w-10 h-10 ${
-                    DESIGN.radius.button
-                  } grid place-items-center ${
+                  className={`w-10 h-10 rounded-full grid place-items-center shadow-lg ${
                     viewer.fav
-                      ? `bg-${DESIGN.colors.primary}-${DESIGN.colors.primaryShade}`
-                      : `bg-white ${DESIGN.borders.ring}`
+                      ? 'bg-[#0037ae]'
+                      : 'bg-white'
                   }`}
                   title={viewer.fav ? 'unfavorite' : 'favorite'}
                   aria-label="favorite"
                 >
                   <Star
                     className="w-5 h-5"
-                    {...(viewer.fav ? { color: 'white', fill: 'white' } : {})}
+                    {...(viewer.fav ? { color: 'white', fill: 'white' } : { color: '#0037ae' })}
                   />
                 </button>
 
@@ -1322,11 +1365,11 @@ export default function Eventi() {
                     e.stopPropagation();
                     copyImageToClipboard(viewer, e);
                   }}
-                  className={`w-10 h-10 ${DESIGN.radius.button} bg-white ${DESIGN.borders.ring} ${DESIGN.shadows.button} grid place-items-center`}
+                  className="w-10 h-10 rounded-full bg-white shadow-lg grid place-items-center"
                   title="copy image"
                   aria-label="copy image"
                 >
-                  <Copy className="w-5 h-5" />
+                  <Copy className="w-5 h-5 text-[#0037ae]" />
                 </button>
 
                 <button
@@ -1334,11 +1377,11 @@ export default function Eventi() {
                     e.stopPropagation();
                     copyImageLink(viewer.dayKey, viewer.id, e);
                   }}
-                  className={`w-10 h-10 ${DESIGN.radius.button} bg-white ${DESIGN.borders.ring} ${DESIGN.shadows.button} grid place-items-center`}
+                  className="w-10 h-10 rounded-full bg-white shadow-lg grid place-items-center"
                   title="copy link"
                   aria-label="copy link"
                 >
-                  <Link2 className="w-5 h-5" />
+                  <Link2 className="w-5 h-5 text-[#0037ae]" />
                 </button>
               </div>
             </motion.div>
@@ -1351,7 +1394,7 @@ export default function Eventi() {
                 delay: 0.1,
                 ease: [0.16, 1, 0.3, 1],
               }}
-              className={`w-full max-w-2xl p-4 ${DESIGN.radius.card} bg-white ${DESIGN.borders.ring}`}
+              className="w-full max-w-2xl p-4 rounded-lg bg-white shadow-xl"
               onClick={(e) => e.stopPropagation()}
             >
               <label className="block text-sm font-medium text-neutral-700 mb-2">
@@ -1365,18 +1408,17 @@ export default function Eventi() {
                   updateImageNote(viewer.dayKey, viewer.id, newNote);
                 }}
                 placeholder="Add notes about this image..."
-                className={`w-full px-3 py-2 ${DESIGN.radius.card} ${DESIGN.borders.ring} bg-neutral-50 focus:bg-white outline-none min-h-[100px] resize-y`}
+                className="w-full px-3 py-2 rounded-lg border border-neutral-200 bg-neutral-50 focus:bg-white outline-none min-h-[100px] resize-y"
               />
             </motion.div>
           </div>
         </motion.div>
       )}
 
+      {/* Delete Confirmation Modal */}
       {deleteConfirm && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm grid place-items-center p-4">
-          <div
-            className={`w-full max-w-sm ${DESIGN.radius.modal} bg-white ${DESIGN.shadows.card} ${DESIGN.borders.ring} p-5 space-y-4`}
-          >
+          <div className="w-full max-w-sm rounded-2xl bg-white shadow-xl p-5 space-y-4">
             <h3 className="text-lg font-semibold text-neutral-900">
               Delete Image?
             </h3>
@@ -1387,7 +1429,7 @@ export default function Eventi() {
             <div className="flex gap-2 justify-end">
               <button
                 onClick={() => setDeleteConfirm(null)}
-                className={`px-4 py-2 ${DESIGN.radius.card} bg-neutral-100 text-neutral-800 hover:bg-neutral-200`}
+                className="px-4 py-2 rounded-lg bg-neutral-100 text-neutral-800 hover:bg-neutral-200"
               >
                 Cancel
               </button>
@@ -1402,7 +1444,7 @@ export default function Eventi() {
                     setViewer(null);
                   }
                 }}
-                className={`px-4 py-2 ${DESIGN.radius.card} bg-red-600 text-white hover:bg-red-700`}
+                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
               >
                 Delete
               </button>
@@ -1411,15 +1453,14 @@ export default function Eventi() {
         </div>
       )}
 
+      {/* Slug Prompt Modal */}
       {showSlugPrompt && (
         <div
           className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm grid place-items-center p-4"
           role="dialog"
           aria-modal
         >
-          <div
-            className={`w-full max-w-sm ${DESIGN.radius.modal} bg-white ${DESIGN.shadows.card} ${DESIGN.borders.ring} p-5 space-y-3`}
-          >
+          <div className="w-full max-w-sm rounded-2xl bg-white shadow-xl p-5 space-y-3">
             <div className="text-sm text-neutral-800">
               create/go to existing board
             </div>
@@ -1435,10 +1476,10 @@ export default function Eventi() {
                   setShowSlugPrompt(false);
                 }
               }}
-              className={`w-full px-3 py-2 ${DESIGN.radius.card} ${DESIGN.borders.ring} bg-neutral-50 focus:bg-white outline-none`}
+              className="w-full px-3 py-2 rounded-lg border border-neutral-200 bg-neutral-50 focus:bg-white outline-none"
             />
             <div className="text-[12px] text-neutral-500">
-              tap the red calendar icon anytime to name/switch boards. we'll
+              tap the POSTBILLS logo anytime to name/switch boards. we'll
               update the url to /your-slug. bookmark it. anyone with the link
               can view/edit.
             </div>
@@ -1451,7 +1492,7 @@ export default function Eventi() {
                     setShowSlugPrompt(false);
                   }
                 }}
-                className={`px-3 py-1.5 ${DESIGN.radius.card} bg-${DESIGN.colors.primary}-${DESIGN.colors.primaryShade} text-white disabled:opacity-50`}
+                className="px-3 py-1.5 rounded-lg bg-[#0037ae] text-white disabled:opacity-50"
               >
                 continue
               </button>
@@ -1460,14 +1501,17 @@ export default function Eventi() {
         </div>
       )}
 
+      {/* Help Button */}
       <button
         onClick={() => setShowHelp(true)}
-        className={`fixed bottom-4 right-4 z-40 w-10 h-10 ${DESIGN.radius.button} bg-white ${DESIGN.borders.ring} ${DESIGN.shadows.button} grid place-items-center`}
+        className="fixed bottom-4 right-4 z-40 w-10 h-10 rounded-full bg-white shadow-lg grid place-items-center"
         title="help"
         aria-label="help"
       >
-        <HelpCircle className="w-5 h-5" />
+        <HelpCircle className="w-5 h-5 text-[#0037ae]" />
       </button>
+
+      {/* Help Popover */}
       {showHelp && (
         <>
           <div
@@ -1475,12 +1519,12 @@ export default function Eventi() {
             onClick={() => setShowHelp(false)}
           />
           <div
-            className={`fixed bottom-16 right-4 z-50 w-72 ${DESIGN.radius.column} bg-white ${DESIGN.shadows.card} ${DESIGN.borders.ring} p-3 text-[12px] text-neutral-700`}
+            className="fixed bottom-16 right-4 z-50 w-72 rounded-xl bg-white shadow-xl border border-neutral-200 p-3 text-[12px] text-neutral-700"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="font-medium mb-1">quick tips</div>
             <ul className="list-disc pl-4 space-y-1">
-              <li>tap the red calendar to create/go to your board.</li>
+              <li>tap the POSTBILLS logo to create/go to your board.</li>
               <li>copy your link with the link icon.</li>
               <li>drag images from desktop into a day.</li>
               <li>use filters to hide empty/past or show only favorites.</li>
@@ -1491,6 +1535,7 @@ export default function Eventi() {
         </>
       )}
 
+      {/* Copy Feedback Toast */}
       <AnimatePresence>
         {copyFeedback.show && (
           <motion.div
@@ -1504,7 +1549,7 @@ export default function Eventi() {
               top: copyFeedback.y,
               zIndex: 9999,
             }}
-            className="bg-green-600 text-white text-xs px-3 py-1.5 rounded-full shadow-lg font-medium whitespace-nowrap"
+            className="bg-[#0037ae] text-white text-xs px-3 py-1.5 rounded-full shadow-lg font-medium whitespace-nowrap"
           >
             {copyFeedback.type === 'image'
               ? 'Image downloaded!'
@@ -1516,8 +1561,8 @@ export default function Eventi() {
   );
 }
 
-function ColumnAddBar({ dayKey, onFiles }) {
-  const inputRef = useRef(null);
+function ColumnAddBar({ dayKey, onFiles }: { dayKey: string; onFiles: (dayKey: string, files: FileList) => void }) {
+  const inputRef = useRef<HTMLInputElement>(null);
   return (
     <div className="shrink-0 relative">
       <input
@@ -1533,17 +1578,14 @@ function ColumnAddBar({ dayKey, onFiles }) {
           }
         }}
       />
-      <div className="pointer-events-none h-10 bg-gradient-to-t from-white/95 to-transparent" />
-      <div className="absolute left-3 right-3 bottom-3">
-        <button
-          onClick={() => inputRef.current?.click()}
-          className={`w-full py-3 ${DESIGN.radius.card} bg-neutral-100 text-neutral-800 ${DESIGN.borders.ring} ${DESIGN.shadows.button} hover:bg-neutral-200 active:scale-[0.99] text-2xl leading-none`}
-          title="add images"
-          aria-label="add images"
-        >
-          +
-        </button>
-      </div>
+      <button
+        onClick={() => inputRef.current?.click()}
+        className="w-full h-[52px] rounded-[5px] border border-white flex items-center justify-center hover:bg-white/10 transition-colors"
+        title="add images"
+        aria-label="add images"
+      >
+        <PlusIcon />
+      </button>
     </div>
   );
 }
