@@ -234,6 +234,7 @@ export default function PostBills() {
   );
 
   const [board, setBoard] = useState<Board>({});
+  const [dataLoaded, setDataLoaded] = useState(false);
   const [viewer, setViewer] = useState<Viewer | null>(null);
   const [showNotes, setShowNotes] = useState(false);
   const [fileOver, setFileOver] = useState<string | null>(null);
@@ -380,11 +381,24 @@ export default function PostBills() {
           for (const d of days) n[fmtKey(d)] = by[fmtKey(d)] || [];
           return n;
         });
+        // Mark data as loaded after first snapshot
+        setDataLoaded(true);
       },
       (err) => console.warn('firestore snapshot error', err)
     );
     return () => unsub();
   }, [slug, days]);
+
+  // Scroll to today after data has loaded and columns have their final widths
+  useEffect(() => {
+    if (dataLoaded && !hasScrolledToToday.current && columnRefs.current[todayKey]) {
+      hasScrolledToToday.current = true;
+      // Small delay to ensure columns have rendered with their final widths
+      requestAnimationFrame(() => {
+        scrollTo(todayKey, true, true);
+      });
+    }
+  }, [dataLoaded, todayKey]);
 
   useEffect(() => {
     const u = () => setHeaderH(headerRef.current?.offsetHeight || 96);
@@ -1002,8 +1016,8 @@ export default function PostBills() {
                         ref={(el) => {
                           provided.innerRef(el);
                           columnRefs.current[key] = el;
-                          // Scroll to today's column as soon as it's mounted
-                          if (el && key === todayKey && !hasScrolledToToday.current) {
+                          // Scroll to today's column after data is loaded and columns have final widths
+                          if (el && key === todayKey && !hasScrolledToToday.current && dataLoaded) {
                             hasScrolledToToday.current = true; // Set flag immediately to prevent duplicate scrolls
                             requestAnimationFrame(() => {
                               el.scrollIntoView({
