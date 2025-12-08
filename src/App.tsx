@@ -389,14 +389,14 @@ export default function PostBills() {
     return () => unsub();
   }, [slug, days]);
 
-  // Scroll to today after data has loaded and columns have their final widths
+  // Scroll to today after data has loaded - use same method as Today button
   useEffect(() => {
-    if (dataLoaded && !hasScrolledToToday.current && columnRefs.current[todayKey]) {
+    if (dataLoaded && !hasScrolledToToday.current) {
       hasScrolledToToday.current = true;
-      // Small delay to ensure columns have rendered with their final widths
-      requestAnimationFrame(() => {
-        scrollTo(todayKey, true, true);
-      });
+      // Use setTimeout to ensure columns have rendered with their final widths
+      setTimeout(() => {
+        scrollTo(todayKey, true);
+      }, 100);
     }
   }, [dataLoaded, todayKey]);
 
@@ -1016,17 +1016,6 @@ export default function PostBills() {
                         ref={(el) => {
                           provided.innerRef(el);
                           columnRefs.current[key] = el;
-                          // Scroll to today's column after data is loaded and columns have final widths
-                          if (el && key === todayKey && !hasScrolledToToday.current && dataLoaded) {
-                            hasScrolledToToday.current = true; // Set flag immediately to prevent duplicate scrolls
-                            requestAnimationFrame(() => {
-                              el.scrollIntoView({
-                                behavior: 'instant',
-                                inline: 'center',
-                                block: 'nearest',
-                              });
-                            });
-                          }
                         }}
                         {...provided.droppableProps}
                         onDragOver={(e) => onExtOver(e, key)}
