@@ -2,11 +2,15 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
+// Check if running in Stackblitz or similar environment
+const isStackblitz = process.env.STACKBLITZ === '1' || process.env.NODE_ENV === 'stackblitz';
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
     react(),
-    VitePWA({
+    // Conditionally enable PWA plugin (disable in Stackblitz for preview compatibility)
+    !isStackblitz && VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['icons/*.png', 'vite.svg'],
       manifest: {
@@ -89,5 +93,5 @@ export default defineConfig({
         type: 'module'
       }
     })
-  ],
+  ].filter(Boolean), // Filter out false values when PWA is disabled
 })
