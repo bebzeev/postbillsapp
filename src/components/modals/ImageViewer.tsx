@@ -43,27 +43,36 @@ export function ImageViewer({
   
   const handleDragEnd = useCallback((event: MouseEvent | TouchEvent | PointerEvent, info: DragInfo) => {
     setIsDragging(false);
-    // If swiped up more than 50px with velocity, show notes
-    if (info.offset.y < -50 || info.velocity.y < -200) {
+    // If swiped up more than 40px with velocity, show notes
+    if (info.offset.y < -40 || info.velocity.y < -150) {
       if (!showNotes) {
         onToggleNotes();
       }
     }
-    // If swiped down more than 50px with velocity, hide notes
-    if (info.offset.y > 50 || info.velocity.y > 200) {
+    // If swiped down more than 30px with velocity, hide notes (easier to swipe down)
+    if (info.offset.y > 30 || info.velocity.y > 150) {
       if (showNotes) {
         onToggleNotes();
       }
     }
   }, [showNotes, onToggleNotes]);
+
+  // Handle clicks on the backdrop to close the modal
+  const handleBackdropClick = useCallback((e: React.MouseEvent) => {
+    // Only close if clicking directly on the backdrop, not on children
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  }, [onClose]);
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.2 }}
-      className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-8"
-      onClick={onClose}
+      className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center min-h-[100dvh]"
+      onClick={handleBackdropClick}
     >
       <button
         onClick={onClose}
@@ -74,16 +83,16 @@ export function ImageViewer({
         <X className="w-6 h-6 text-white" />
       </button>
 
-      <motion.div 
+      <motion.div
         ref={containerRef}
-        className="relative max-w-4xl w-full flex flex-col items-center gap-4"
+        className="relative max-w-4xl w-full flex items-center justify-center"
         drag={isTouch ? "y" : false}
         dragConstraints={{ top: 0, bottom: 0 }}
         dragElastic={0.2}
         onDragStart={() => setIsDragging(true)}
         onDragEnd={handleDragEnd}
         style={{ y: dragY }}
-        onClick={(e) => e.stopPropagation()}
+        onClick={handleBackdropClick}
       >
         {/* Swipe indicator */}
         {isTouch && !showNotes && (
@@ -104,6 +113,7 @@ export function ImageViewer({
           animate={{ scale: 1, opacity: 1 }}
           transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
           className="relative flex justify-center group min-h-[200px]"
+          onClick={(e) => e.stopPropagation()}
         >
           <img
             src={viewer.url}
@@ -204,7 +214,7 @@ export function ImageViewer({
                 stiffness: 400,
                 damping: 30,
               }}
-              className="w-full max-w-2xl p-4 rounded-lg bg-white shadow-xl"
+              className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full max-w-2xl p-4 rounded-lg bg-white shadow-xl"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-2">
