@@ -841,9 +841,11 @@ export default function PostBills() {
       style={{
         backgroundColor: DESIGN.colors.mainBlue,
         fontFamily: DESIGN.fonts.body,
-        height: '100dvh', // Exact viewport height for mobile
         position: 'fixed',
-        inset: 0,
+        top: 0,
+        left: 0,
+        width: '100vw',
+        height: '100vh',
       }}
     >
       {/* Header */}
@@ -882,7 +884,7 @@ export default function PostBills() {
         <div
           ref={scrollRef}
           style={{
-            height: `calc(100dvh - ${headerH}px)`,
+            height: `calc(100vh - ${headerH}px)`,
             touchAction: isDragging ? 'none' : 'pan-x',
             overscrollBehaviorX: 'contain',
             overscrollBehaviorY: 'none',
