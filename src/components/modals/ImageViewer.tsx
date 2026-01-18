@@ -32,7 +32,14 @@ export function ImageViewer({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.2 }}
-      className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-8"
+      className="fixed z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-8"
+      style={{
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        minHeight: '100dvh',
+      }}
       onClick={onClose}
     >
       <button
