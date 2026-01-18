@@ -566,7 +566,8 @@ export default function PostBills() {
 
   async function copyImageToClipboard(item: ImageItem | Viewer, event?: React.MouseEvent) {
     try {
-      const dataUrl = item.dataUrl || (item as Viewer).url;
+      // Handle both ImageItem (has dataUrl) and Viewer (has url)
+      const dataUrl = 'dataUrl' in item ? item.dataUrl : item.url;
       if (!dataUrl) throw new Error('No image data available');
 
       try {
@@ -591,6 +592,7 @@ export default function PostBills() {
         }
         return;
       } catch {
+        // Fallback: trigger download
         const link = document.createElement('a');
         link.href = dataUrl;
         link.download = item.name || 'image.jpg';
@@ -620,7 +622,8 @@ export default function PostBills() {
 
   async function downloadImage(item: ImageItem | Viewer, event?: React.MouseEvent) {
     try {
-      const dataUrl = item.dataUrl || (item as Viewer).url;
+      // Handle both ImageItem (has dataUrl) and Viewer (has url)
+      const dataUrl = 'dataUrl' in item ? item.dataUrl : item.url;
       if (!dataUrl) throw new Error('No image data available');
 
       // Create a temporary link and trigger download

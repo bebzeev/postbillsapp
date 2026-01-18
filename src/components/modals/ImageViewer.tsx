@@ -35,11 +35,24 @@ export function ImageViewer({
   onUpdateNote,
 }: ImageViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const dragY = useMotionValue(0);
-  
+
   // Transform for the swipe indicator opacity
   const indicatorOpacity = useTransform(dragY, [-50, 0], [0, 1]);
+
+  // Scroll textarea into view when it gets focus (for mobile keyboard)
+  const handleTextareaFocus = useCallback(() => {
+    if (isTouch && textareaRef.current) {
+      setTimeout(() => {
+        textareaRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest',
+        });
+      }, 300); // Small delay for keyboard animation
+    }
+  }, [isTouch]);
   
   const handleDragEnd = useCallback((event: MouseEvent | TouchEvent | PointerEvent, info: DragInfo) => {
     setIsDragging(false);
@@ -71,18 +84,12 @@ export function ImageViewer({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.2 }}
-      className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center"
-      style={{
-        zIndex: 9999,
-        minHeight: '100vh',
-        minHeight: '100dvh',
-      }}
+      className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-8"
       onClick={handleBackdropClick}
     >
       <button
         onClick={onClose}
-        className="fixed top-4 right-4 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 grid place-items-center transition-all"
-        style={{ zIndex: 10000 }}
+        className="fixed top-4 right-4 z-[60] w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 grid place-items-center transition-all"
         title="close"
         aria-label="close"
       >
@@ -239,8 +246,10 @@ export function ImageViewer({
                 )}
               </div>
               <textarea
+                ref={textareaRef}
                 value={viewer.note || ''}
                 onChange={(e) => onUpdateNote(e.target.value)}
+                onFocus={handleTextareaFocus}
                 placeholder="Add notes about this image..."
                 className="w-full px-2 py-2 rounded-md border border-white/20 bg-black/30 text-white placeholder-white/50 focus:bg-black/40 outline-none min-h-[80px] resize-y text-xs"
                 autoFocus={isTouch}
