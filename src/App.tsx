@@ -882,7 +882,7 @@ export default function PostBills() {
         <div
           ref={scrollRef}
           style={{
-            height: `calc(100dvh - ${headerH}px - env(safe-area-inset-top, 0px))`,
+            height: `calc(100dvh - ${headerH}px)`,
             touchAction: isDragging ? 'none' : 'pan-x',
             overscrollBehaviorX: 'contain',
             overscrollBehaviorY: 'contain',
