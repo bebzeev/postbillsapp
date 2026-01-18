@@ -893,10 +893,10 @@ export default function PostBills() {
           className="overflow-x-auto overflow-y-hidden scrollbar-hide"
         >
           <div
-            className="h-full flex items-start gap-[8px] pl-0 pt-[7px]"
+            className="h-full flex items-start gap-[8px] pl-0"
             style={{
               paddingRight: 'max(env(safe-area-inset-right, 0px), 10px)',
-              paddingBottom: 'max(10px, env(safe-area-inset-bottom, 0px))',
+              paddingBottom: 'env(safe-area-inset-bottom, 0px)',
             }}
           >
             {/* Load past days button */}
