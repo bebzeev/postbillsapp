@@ -1,0 +1,20 @@
+{
+  "appId": "com.postbills.app",
+  "appName": "POSTBILLS",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "StatusBar": {
+      "style": "LIGHT",
+      "backgroundColor": "#0037ae"
+    },
+    "SplashScreen": {
+      "launchShowDuration": 0
+    }
+  },
+  "ios": {
+    "contentInset": "always"
+  }
+}
