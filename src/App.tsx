@@ -826,7 +826,6 @@ export default function PostBills() {
             className="h-full flex items-start gap-[8px] pl-0 pt-[7px]"
             style={{
               paddingRight: 'max(env(safe-area-inset-right, 0px), 10px)',
-              paddingBottom: 'env(safe-area-inset-bottom, 0px)',
             }}
           >
             {/* Load past days button */}
