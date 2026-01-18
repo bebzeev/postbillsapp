@@ -66,26 +66,22 @@ export function ImageViewer({
   }, [onClose]);
 
   return (
-    <>
-      {/* Status bar overlay - ensures full coverage in web app mode */}
-      <div
-        className="fixed top-0 left-0 right-0 z-50 bg-black/70 backdrop-blur-sm pointer-events-none"
-        style={{ height: 'env(safe-area-inset-top, 20px)' }}
-      />
-
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.2 }}
-        className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center"
-        style={{
-          minHeight: '100dvh',
-          paddingTop: 'env(safe-area-inset-top, 0px)',
-          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-        }}
-        onClick={handleBackdropClick}
-      >
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
+      className="fixed z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center"
+      style={{
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        minHeight: '100vh',
+        height: '100dvh',
+      }}
+      onClick={handleBackdropClick}
+    >
       <button
         onClick={onClose}
         className="fixed top-4 right-4 z-[60] w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 grid place-items-center transition-all"
@@ -98,7 +94,7 @@ export function ImageViewer({
       <motion.div
         ref={containerRef}
         className="relative max-w-4xl w-full flex items-center justify-center px-4"
-        drag={isTouch && !showNotes ? "y" : false}
+        drag={isTouch ? "y" : false}
         dragConstraints={{ top: 0, bottom: 0 }}
         dragElastic={0.2}
         onDragStart={() => setIsDragging(true)}
@@ -126,16 +122,18 @@ export function ImageViewer({
           transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
           className="relative flex justify-center group min-h-[200px]"
           onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
         >
           <img
             src={viewer.url}
             alt={viewer.name || 'flyer'}
             className="max-w-full max-h-[60vh] object-contain rounded-[10px] shadow-2xl"
-            onContextMenu={(e) => {
-              // Allow native context menu for long press on iOS
-              e.stopPropagation();
+            style={{
+              touchAction: 'auto',
+              userSelect: 'none',
+              WebkitUserSelect: 'none',
             }}
-            style={{ touchAction: 'auto' }}
           />
 
           <button
@@ -254,6 +252,5 @@ export function ImageViewer({
         </AnimatePresence>
       </motion.div>
     </motion.div>
-    </>
   );
 }

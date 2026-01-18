@@ -855,7 +855,7 @@ export default function PostBills() {
           onTouchMove={(e) => {
             if (isDragging) e.preventDefault();
           }}
-          className="overflow-x-auto overflow-y-hidden"
+          className="overflow-x-auto overflow-y-hidden scrollbar-hide"
         >
           <div
             className="h-full flex items-start gap-[8px] pl-0 pt-[7px]"

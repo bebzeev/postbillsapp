@@ -133,7 +133,11 @@ export function DayColumn({
 
           {/* Header */}
           <div
-            className="relative z-10 shrink-0 w-full"
+            className="relative z-10 shrink-0 w-full select-none"
+            style={{
+              WebkitUserSelect: 'none',
+              WebkitTouchCallout: 'none',
+            }}
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
             onTouchCancel={handleTouchEnd}

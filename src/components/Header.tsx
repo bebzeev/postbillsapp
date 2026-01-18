@@ -65,7 +65,7 @@ export function Header({
         </button>
 
         {/* Navigation */}
-        <div className="flex-1 flex items-center justify-end gap-[10px] relative">
+        <div className="flex-1 flex items-center justify-end gap-[10px] relative mt-2">
           {/* Network Status Indicator - Floating above buttons */}
           {!isOnline && (
             <div
