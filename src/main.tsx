@@ -2,6 +2,8 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
+import { StatusBar, Style } from '@capacitor/status-bar'
+import { Capacitor } from '@capacitor/core'
 
 // Register service worker for PWA offline functionality
 // Made optional for environments like Stackblitz that don't support it
@@ -35,6 +37,13 @@ if ('serviceWorker' in navigator && typeof window !== 'undefined') {
       // Silently fail in environments that don't support PWA (like Stackblitz)
       console.log('PWA features not available in this environment');
     });
+}
+
+// Configure status bar for iOS/Android
+if (Capacitor.isNativePlatform()) {
+  StatusBar.setStyle({ style: Style.Light }).catch(console.error);
+  StatusBar.setBackgroundColor({ color: '#0037ae' }).catch(console.error);
+  StatusBar.setOverlaysWebView({ overlay: false }).catch(console.error);
 }
 
 createRoot(document.getElementById('root')!).render(

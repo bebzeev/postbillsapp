@@ -1,19 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { motion, AnimatePresence } from 'framer-motion';
+import { DragDropContext } from '@hello-pangea/dnd';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import {
-  X,
-  HelpCircle,
-  Star,
-  ChevronRight,
-  Trash2,
-  Copy,
-  Link2,
-  FileText,
-} from 'lucide-react';
-import { initializeApp } from 'firebase/app';
-import {
-  getFirestore,
   serverTimestamp,
   writeBatch,
   onSnapshot,
@@ -23,7 +11,6 @@ import {
   deleteDoc,
 } from 'firebase/firestore';
 import {
-  getStorage,
   ref as sRef,
   uploadString,
   getDownloadURL,
@@ -31,168 +18,33 @@ import {
 } from 'firebase/storage';
 import { saveBoard, getBoard, queueOperation } from './db';
 import { processSyncQueue, onSyncStatusChange, type SyncStatus } from './syncQueue';
-
-// ========== DESIGN SYSTEM - POSTBILLS ==========
-const DESIGN = {
-  colors: {
-    mainBlue: '#0037ae',
-    white: '#ffffff',
-  },
-  fonts: {
-    logo: "'Allerta Stencil', sans-serif",
-    heading: "'Andale Mono', monospace",
-    body: "'DM Mono', monospace",
-    nav: "'Roboto Mono', monospace",
-  },
-};
-// ========== END DESIGN SYSTEM ==========
-
-const DAY_MS = 86400000;
-const todayAtMidnight = () => {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d;
-};
-const fmtKey = (d: Date) => d.toISOString().slice(0, 10);
-const fmtMD = (d: Date) =>
-  `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(
-    2,
-    '0'
-  )}`;
-const fmtDOW = (d: Date) => d.toLocaleDateString(undefined, { weekday: 'long' });
-const fmtDOWShort = (d: Date) =>
-  (d.toLocaleDateString('en-US', { weekday: 'short' }) || '').slice(0, 3).toUpperCase();
-const uid = () => `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-const genRange = (future: number) => {
-  const s = new Date(todayAtMidnight().getTime() - 30 * DAY_MS),
-    e = new Date(todayAtMidnight().getTime() + future * DAY_MS),
-    a: Date[] = [];
-  for (let t = s.getTime(); t <= e.getTime(); t += DAY_MS) a.push(new Date(t));
-  return a;
-};
-
-const FAVICON_DATA_URL =
-  'data:image/svg+xml;utf8,' +
-  encodeURIComponent(
-    "<?xml version=\"1.0\" encoding=\"UTF-8\"?><svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='#0037ae'/><rect x='16' y='20' width='32' height='28' rx='5' fill='#fff'/><rect x='16' y='20' width='32' height='8' rx='5' fill='#e0e7ff'/><circle cx='24' cy='14' r='4' fill='#fff'/><circle cx='40' cy='14' r='4' fill='#fff'/></svg>"
-  );
-
-async function fileToDataUrlCompressed(file: File, maxWidth = 1400) {
-  const dataUrl = await new Promise<string>((res, rej) => {
-    const r = new FileReader();
-    r.onload = () => res(String(r.result));
-    r.onerror = rej;
-    r.readAsDataURL(file);
-  });
-  return await new Promise<string>((res) => {
-    const img = new Image();
-    img.onload = () => {
-      const s = Math.min(1, maxWidth / img.width),
-        w = Math.round(img.width * s),
-        h = Math.round(img.height * s);
-      const c = document.createElement('canvas');
-      c.width = w;
-      c.height = h;
-      c.getContext('2d')!.drawImage(img, 0, 0, w, h);
-      res(c.toDataURL('image/jpeg', 0.88));
-    };
-    img.onerror = () => res(dataUrl);
-    img.src = dataUrl;
-  });
-}
-
-const FIREBASE_CONFIG = {
-  apiKey: 'AIzaSyB9wuCSs7WVwjpBNsEigAIHYsciZo0wFYc',
-  authDomain: 'eventi-72011.firebaseapp.com',
-  projectId: 'eventi-72011',
-  storageBucket: 'eventi-72011.firebasestorage.app',
-  messagingSenderId: '1080772011295',
-  appId: '1:1080772011295:web:6341c33fd257799ada7c2a',
-};
-
-let app: ReturnType<typeof initializeApp> | undefined,
-  db: ReturnType<typeof getFirestore> | undefined,
-  storage: ReturnType<typeof getStorage> | undefined,
-  firebaseReady = false;
-try {
-  app = initializeApp(FIREBASE_CONFIG);
-  db = getFirestore(app);
-  storage = getStorage(app, `gs://${FIREBASE_CONFIG.storageBucket}`);
-  firebaseReady = true;
-} catch {
-  console.warn('firebase not initialized (ok for local)');
-}
-
-function useColW() {
-  const [w, setW] = useState(() =>
-    typeof window !== 'undefined' ? window.innerWidth : 1024
-  );
-  useEffect(() => {
-    const on = () => setW(window.innerWidth || 1024);
-    window.addEventListener('resize', on);
-    return () => window.removeEventListener('resize', on);
-  }, []);
-  // Figma shows populated columns at 166px and empty at 117px
-  let populated = 166;
-  if (w < 640) populated = Math.round(w * 0.42);
-  else if (w < 1024) populated = 166;
-  else populated = 180;
-  const empty = Math.max(Math.round(populated * 0.7), 100);
-  return { populated, empty, isNarrow: w < 640 };
-}
-
-// SVG Icons matching Figma design
-const LinkRotatedIcon = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="rotate-[-45deg]">
-    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-  </svg>
-);
-
-const StarIcon = ({ filled = false }) => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-  </svg>
-);
-
-const FilterIcon = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
-  </svg>
-);
-
-const PlusIcon = () => (
-  <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
-    <rect x="7" y="0" width="3" height="17" fill="white"/>
-    <rect x="0" y="7" width="17" height="3" fill="white"/>
-  </svg>
-);
-
-interface ImageItem {
-  id: string;
-  name: string;
-  dataUrl: string;
-  fav: boolean;
-  note: string;
-  _order?: number;
-}
-
-interface Board {
-  [key: string]: ImageItem[];
-}
-
-interface Viewer {
-  url: string;
-  name: string;
-  dayKey: string;
-  id: string;
-  fav: boolean;
-  note: string;
-}
+import { db, storage, firebaseReady } from './constants/firebase';
+import { DESIGN, FAVICON_DATA_URL, DAY_MS } from './constants/design';
+import { todayAtMidnight, fmtKey, genRange } from './utils/date';
+import { fileToDataUrlCompressed } from './utils/file';
+import { uid, isTouch as getIsTouch } from './utils/helpers';
+import { useColW } from './hooks';
+import { Header, DayColumn, GapSeparator } from './components';
+import {
+  ImageViewer,
+  DeleteConfirm,
+  SlugPrompt,
+  Help,
+  CopyFeedback,
+} from './components/modals';
+import type {
+  Board,
+  Viewer,
+  ImageItem,
+  DeleteConfirmState,
+  CopyFeedback as CopyFeedbackType,
+  ExternalHover,
+} from './types';
 
 export default function PostBills() {
   const [futureShown, setFutureShown] = useState(60);
-  const days = useMemo(() => genRange(futureShown), [futureShown]);
+  const [pastShown, setPastShown] = useState(30);
+  const days = useMemo(() => genRange(futureShown, pastShown), [futureShown, pastShown]);
   const todayKey = fmtKey(todayAtMidnight());
 
   const initialSlug = useMemo(() => {
@@ -240,10 +92,7 @@ export default function PostBills() {
   const [viewer, setViewer] = useState<Viewer | null>(null);
   const [showNotes, setShowNotes] = useState(false);
   const [fileOver, setFileOver] = useState<string | null>(null);
-  const [externalHover, setExternalHover] = useState<{
-    dayKey: string | null;
-    index: number | null;
-  }>({
+  const [externalHover, setExternalHover] = useState<ExternalHover>({
     dayKey: null,
     index: null,
   });
@@ -251,11 +100,8 @@ export default function PostBills() {
   const [showFavOnly, setShowFavOnly] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState<{
-    dayKey: string;
-    id: string;
-  } | null>(null);
-  const [copyFeedback, setCopyFeedback] = useState({
+  const [deleteConfirm, setDeleteConfirm] = useState<DeleteConfirmState | null>(null);
+  const [copyFeedback, setCopyFeedback] = useState<CopyFeedbackType>({
     show: false,
     type: '',
     x: 0,
@@ -264,8 +110,11 @@ export default function PostBills() {
   const [isOnline, setIsOnline] = useState(() => navigator.onLine);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
   const [syncMessage, setSyncMessage] = useState<string>('');
+  const [copied, setCopied] = useState(false);
+  const [expandedDay, setExpandedDay] = useState<string | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const lastScrollLeft = useRef<number>(0);
   const columnRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
   const listRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
   const headerRef = useRef<HTMLDivElement>(null);
@@ -273,20 +122,12 @@ export default function PostBills() {
   const anchorRef = useRef<string | null>(null);
   const hasScrolledToToday = useRef(false);
 
-  const isTouch = useMemo(
-    () =>
-      typeof window !== 'undefined' &&
-      (window.matchMedia
-        ? window.matchMedia('(pointer: coarse)').matches
-        : 'ontouchstart' in window),
-    []
-  );
+  const isTouch = useMemo(() => getIsTouch(), []);
 
   // Network status detection
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
-      // Process sync queue when coming back online
       if (firebaseReady && db && storage && slug) {
         processSyncQueue(slug, db, storage).catch(console.error);
       }
@@ -316,7 +157,7 @@ export default function PostBills() {
   // Load cached board data from IndexedDB on mount
   useEffect(() => {
     if (!slug) return;
-    
+
     getBoard(slug).then((cachedBoard) => {
       if (cachedBoard) {
         setBoard((prev) => {
@@ -432,18 +273,16 @@ export default function PostBills() {
         });
         for (const k in by)
           by[k].sort((a, b) => (a._order ?? 0) - (b._order ?? 0));
-        
+
         const newBoard: Board = {};
         for (const d of days) newBoard[fmtKey(d)] = by[fmtKey(d)] || [];
-        
+
         setBoard(newBoard);
-        
-        // Save to IndexedDB for offline access
+
         saveBoard(slug, newBoard).catch((err) => {
           console.warn('Failed to save board to IndexedDB:', err);
         });
-        
-        // Mark data as loaded after first snapshot
+
         setDataLoaded(true);
       },
       (err) => console.warn('firestore snapshot error', err)
@@ -451,11 +290,10 @@ export default function PostBills() {
     return () => unsub();
   }, [slug, days]);
 
-  // Scroll to today after data has loaded - use same method as Today button
+  // Scroll to today after data has loaded
   useEffect(() => {
     if (dataLoaded && !hasScrolledToToday.current) {
       hasScrolledToToday.current = true;
-      // Use setTimeout to ensure columns have rendered with their final widths
       setTimeout(() => {
         scrollTo(todayKey, true);
       }, 100);
@@ -470,8 +308,6 @@ export default function PostBills() {
   }, []);
 
   useEffect(() => {
-    // Reset notes visibility when viewer changes (different image or closed)
-    // Only reset when viewer.id changes, not when note/fav updates
     setShowNotes(false);
   }, [viewer?.id]);
 
@@ -525,6 +361,29 @@ export default function PostBills() {
     return () => s.removeEventListener('touchmove', h);
   }, [isDragging]);
 
+  // Detect horizontal scroll to collapse expanded day
+  useEffect(() => {
+    const s = scrollRef.current;
+    if (!s || !expandedDay) return;
+
+    const handleScroll = () => {
+      const currentScrollLeft = s.scrollLeft;
+      const scrollDelta = Math.abs(currentScrollLeft - lastScrollLeft.current);
+
+      // If scrolled more than 50px, collapse the expanded day
+      if (scrollDelta > 50) {
+        setExpandedDay(null);
+      }
+
+      lastScrollLeft.current = currentScrollLeft;
+    };
+
+    s.addEventListener('scroll', handleScroll);
+    lastScrollLeft.current = s.scrollLeft;
+
+    return () => s.removeEventListener('scroll', handleScroll);
+  }, [expandedDay]);
+
   const prevFilters = useRef({ hideEmpty, showFavOnly });
   useEffect(() => {
     const was = prevFilters.current;
@@ -554,7 +413,6 @@ export default function PostBills() {
     setDeleteConfirm(null);
 
     if (!isOnline) {
-      // Queue operation for later sync
       await queueOperation({
         type: 'delete',
         slug,
@@ -581,7 +439,6 @@ export default function PostBills() {
     });
 
     if (!isOnline) {
-      // Queue operation for later sync
       await queueOperation({
         type: 'update',
         slug,
@@ -613,7 +470,6 @@ export default function PostBills() {
     });
 
     if (!isOnline) {
-      // Queue operation for later sync
       await queueOperation({
         type: 'toggleFav',
         slug,
@@ -665,7 +521,6 @@ export default function PostBills() {
     });
 
     if (!isOnline) {
-      // Queue operation for later sync
       await queueOperation({
         type: 'add',
         slug,
@@ -711,7 +566,8 @@ export default function PostBills() {
 
   async function copyImageToClipboard(item: ImageItem | Viewer, event?: React.MouseEvent) {
     try {
-      const dataUrl = item.dataUrl || (item as Viewer).url;
+      // Handle both ImageItem (has dataUrl) and Viewer (has url)
+      const dataUrl = 'dataUrl' in item ? item.dataUrl : item.url;
       if (!dataUrl) throw new Error('No image data available');
 
       try {
@@ -736,6 +592,7 @@ export default function PostBills() {
         }
         return;
       } catch {
+        // Fallback: trigger download
         const link = document.createElement('a');
         link.href = dataUrl;
         link.download = item.name || 'image.jpg';
@@ -760,6 +617,39 @@ export default function PostBills() {
     } catch (err) {
       console.error('Failed to copy/download image:', err);
       alert('Failed to copy image to clipboard');
+    }
+  }
+
+  async function downloadImage(item: ImageItem | Viewer, event?: React.MouseEvent) {
+    try {
+      // Handle both ImageItem (has dataUrl) and Viewer (has url)
+      const dataUrl = 'dataUrl' in item ? item.dataUrl : item.url;
+      if (!dataUrl) throw new Error('No image data available');
+
+      // Create a temporary link and trigger download
+      const link = document.createElement('a');
+      link.href = dataUrl;
+      link.download = item.name || 'postbills-image.jpg';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      if (event) {
+        const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+        setCopyFeedback({
+          show: true,
+          type: 'download',
+          x: rect.right + 10,
+          y: rect.top,
+        });
+        setTimeout(
+          () => setCopyFeedback({ show: false, type: '', x: 0, y: 0 }),
+          2000
+        );
+      }
+    } catch (err) {
+      console.error('Failed to download image:', err);
+      alert('Failed to download image');
     }
   }
 
@@ -890,7 +780,6 @@ export default function PostBills() {
     });
 
     if (!isOnline) {
-      // Queue operation for later sync
       await queueOperation({
         type: 'reorder',
         slug,
@@ -920,29 +809,6 @@ export default function PostBills() {
     }
   }
 
-  const GapSeparator = ({ thin = false }: { thin?: boolean }) => (
-    <div
-      className={`${thin ? 'mx-2' : 'mx-4'} h-full flex items-center`}
-      aria-hidden
-    >
-      <div
-        className={`${thin ? 'w-[2px]' : 'w-[3px]'} bg-white/30`}
-        style={{ height: '80%' }}
-      />
-    </div>
-  );
-
-  const Placeholder = ({ onDropBlock, onDragOverBlock }: { onDropBlock: (e: React.DragEvent) => void; onDragOverBlock: (e: React.DragEvent) => void }) => (
-    <div
-      className="relative z-20 h-10 rounded-[5px] border-2 border-dashed border-white/60 bg-white/10"
-      aria-label="Drop position"
-      onDragOver={onDragOverBlock}
-      onDrop={onDropBlock}
-      onDragEnter={onDragOverBlock}
-    />
-  );
-
-  const [copied, setCopied] = useState(false);
   async function copyShare() {
     const s = (slug || slugDraft || 'demo').trim();
     if (s && slug !== s) setSlug(s);
@@ -959,168 +825,45 @@ export default function PostBills() {
     }
   }
 
+  function toggleExpandDay(dayKey: string) {
+    if (expandedDay === dayKey) {
+      setExpandedDay(null);
+    } else {
+      setExpandedDay(dayKey);
+      // Scroll the expanded column into view
+      setTimeout(() => scrollTo(dayKey, true), 100);
+    }
+  }
+
   return (
     <div
-      className="w-full fixed inset-0 overflow-hidden flex flex-col"
-      style={{ 
+      className="w-full overflow-hidden flex flex-col"
+      style={{
         backgroundColor: DESIGN.colors.mainBlue,
         fontFamily: DESIGN.fonts.body,
+        height: '100dvh', // Exact viewport height for mobile
+        position: 'fixed',
+        inset: 0,
       }}
     >
       {/* Header */}
-      <div
-        ref={headerRef}
-        className="shrink-0 border-b border-white/20"
-        style={{ 
-          boxShadow: '0px 4px 4px 0px rgba(0,0,0,0.25)',
-          paddingTop: 'env(safe-area-inset-top, 0px)',
+      <Header
+        isOnline={isOnline}
+        syncStatus={syncStatus}
+        syncMessage={syncMessage}
+        copied={copied}
+        showFavOnly={showFavOnly}
+        hideEmpty={hideEmpty}
+        onShowSlugPrompt={() => setShowSlugPrompt(true)}
+        onCopyShare={copyShare}
+        onToggleFavOnly={() => setShowFavOnly((v) => !v)}
+        onToggleHideEmpty={() => {
+          anchorRef.current = null;
+          setHideEmpty((v) => !v);
         }}
-      >
-        <div className="w-full px-[10px] pt-[10px] pb-[20px] flex items-center gap-[15px]">
-          {/* Logo */}
-          <button
-            onClick={() => setShowSlugPrompt(true)}
-            className="flex items-center focus:outline-none shrink-0"
-            title="set board name"
-          >
-            <div
-              className="text-white leading-[38px] tracking-[-3px]"
-              style={{ 
-                fontFamily: DESIGN.fonts.logo,
-                fontSize: '50px',
-              }}
-            >
-              <div>POST</div>
-              <div>BILLS</div>
-            </div>
-          </button>
-
-          {/* Navigation */}
-          <div className="flex-1 flex items-center justify-end gap-[10px] relative">
-            {/* Network Status Indicator - Floating above buttons */}
-            {!isOnline && (
-              <div 
-                className="absolute -top-[20px] right-0 flex items-center gap-1 pointer-events-none"
-                style={{ zIndex: 100 }}
-              >
-                <div 
-                  className="w-[10px] h-[10px] rounded-full bg-red-500 animate-pulse"
-                  title="Offline - changes will sync when online"
-                  aria-label="offline indicator"
-                />
-                <span className="text-[10px] text-white/90 uppercase tracking-wide font-medium">
-                  offline
-                </span>
-              </div>
-            )}
-            {syncStatus === 'syncing' && isOnline && (
-              <div 
-                className="absolute -top-[20px] right-0 flex items-center gap-1 pointer-events-none"
-                style={{ zIndex: 100 }}
-              >
-                <div 
-                  className="w-[10px] h-[10px] rounded-full bg-yellow-400 animate-pulse"
-                  title="Syncing changes..."
-                  aria-label="syncing indicator"
-                />
-                <span className="text-[10px] text-white/90 uppercase tracking-wide font-medium">
-                  syncing
-                </span>
-              </div>
-            )}
-            {syncStatus === 'success' && isOnline && (
-              <div 
-                className="absolute -top-[20px] right-0 flex items-center gap-1 pointer-events-none"
-                style={{ zIndex: 100 }}
-              >
-                <div 
-                  className="w-[10px] h-[10px] rounded-full bg-green-500"
-                  title={syncMessage || 'Synced'}
-                  aria-label="sync success indicator"
-                />
-                <span className="text-[10px] text-white/90 uppercase tracking-wide font-medium">
-                  synced
-                </span>
-              </div>
-            )}
-            {syncStatus === 'error' && isOnline && (
-              <div 
-                className="absolute -top-[20px] right-0 flex items-center gap-1 pointer-events-none"
-                style={{ zIndex: 100 }}
-              >
-                <div 
-                  className="w-[10px] h-[10px] rounded-full bg-red-500"
-                  title={syncMessage || 'Sync error'}
-                  aria-label="sync error indicator"
-                />
-                <span className="text-[10px] text-white/90 uppercase tracking-wide font-medium">
-                  error
-                </span>
-              </div>
-            )}
-
-            {/* Link button */}
-            <button
-              onClick={copyShare}
-              className="w-[38px] h-[38px] rounded-[6.624px] border-[1.25px] border-white flex items-center justify-center text-white hover:bg-white/10 transition-colors"
-              title="copy link"
-              aria-label="copy link"
-            >
-              <LinkRotatedIcon />
-            </button>
-            {copied && <span className="text-xs text-white/80">copied ✓</span>}
-
-            {/* Star/Favorites button */}
-            <button
-              onClick={() => setShowFavOnly((v) => !v)}
-              className={`w-[38px] h-[38px] rounded-[6.624px] border-[1.25px] border-white flex items-center justify-center transition-colors ${
-                showFavOnly
-                  ? 'bg-white text-[#0037ae]'
-                  : 'text-white hover:bg-white/10'
-              }`}
-              title="show only favorites"
-              aria-label="show only favorites"
-            >
-              <StarIcon filled={showFavOnly} />
-            </button>
-
-            {/* Filter button */}
-            <button
-              onClick={() => {
-                anchorRef.current = null;
-                setHideEmpty((v) => !v);
-              }}
-              className={`w-[38px] h-[38px] rounded-[6.624px] border-[1.25px] border-white flex items-center justify-center transition-colors ${
-                hideEmpty
-                  ? 'bg-white text-[#0037ae]'
-                  : 'text-white hover:bg-white/10'
-              }`}
-              title="toggle hide empty days"
-              aria-label="toggle hide empty days"
-            >
-              <FilterIcon />
-            </button>
-
-            {/* Today button */}
-            <button
-              onClick={() => scrollTo(todayKey, true)}
-              className="h-[38px] px-[19.872px] py-[6.624px] rounded-[6.624px] bg-white flex items-center justify-center hover:bg-white/90 transition-colors"
-              title="jump to today"
-            >
-              <span
-                className="uppercase font-bold tracking-[0.33px]"
-                style={{ 
-                  fontFamily: DESIGN.fonts.nav,
-                  fontSize: '19.872px',
-                  color: DESIGN.colors.mainBlue,
-                }}
-              >
-                today
-              </span>
-            </button>
-          </div>
-        </div>
-      </div>
+        onScrollToToday={() => scrollTo(todayKey, true)}
+        headerRef={headerRef}
+      />
 
       {/* Calendar area */}
       <DragDropContext
@@ -1139,17 +882,34 @@ export default function PostBills() {
         <div
           ref={scrollRef}
           style={{
-            height: `calc(100svh - ${headerH}px - env(safe-area-inset-bottom, 0px))`,
+            height: `calc(100dvh - ${headerH}px)`,
             touchAction: isDragging ? 'none' : 'pan-x',
             overscrollBehaviorX: 'contain',
-            overscrollBehaviorY: 'contain',
+            overscrollBehaviorY: 'none',
           }}
           onTouchMove={(e) => {
             if (isDragging) e.preventDefault();
           }}
-          className="overflow-x-auto overflow-y-hidden"
+          className="overflow-x-auto overflow-y-hidden scrollbar-hide"
         >
-          <div className="h-full flex items-start gap-[8px] pl-0 pt-[7px] pr-[10px]">
+          <div
+            className="h-full flex items-start gap-[8px] pl-0"
+            style={{
+              paddingRight: 'max(env(safe-area-inset-right, 0px), 10px)',
+            }}
+          >
+            {/* Load past days button */}
+            {pastShown < 365 && (
+              <div className="flex items-center pl-4">
+                <button
+                  onClick={() => setPastShown((v) => Math.min(365, v + 30))}
+                  className="p-3 rounded-full bg-white text-[#0037ae] shadow-lg hover:bg-white/90"
+                  title="load 30 more days in the past"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+              </div>
+            )}
             {visibleDays.map((d, i) => {
               const key = fmtKey(d);
               const items = board[key] || [];
@@ -1167,294 +927,50 @@ export default function PostBills() {
                   sep = <GapSeparator thin={isNarrow} key={`${key}-sep`} />;
               }
 
-              const phIdx =
-                externalHover.dayKey === key ? externalHover.index : -1;
-              const render = showFavOnly ? items.filter((x) => !!x.fav) : items;
-
               return (
                 <React.Fragment key={key}>
                   {sep}
-                  <Droppable droppableId={key}>
-                    {(provided, snap) => (
-                      <div
-                        ref={(el) => {
-                          provided.innerRef(el);
-                          columnRefs.current[key] = el;
-                        }}
-                        {...provided.droppableProps}
-                        onDragOver={(e) => onExtOver(e, key)}
-                        onDragLeave={(e) => onExtLeave(e, key)}
-                        onDrop={(e) => onExtDrop(e, key)}
-                        style={{
-                          minWidth: w,
-                          width: w,
-                          touchAction: isDragging ? 'none' : 'auto',
-                          overscrollBehaviorY: 'contain',
-                        }}
-                        onTouchMove={(e) => {
-                          if (isDragging) e.preventDefault();
-                        }}
-                        className={`relative h-full flex flex-col rounded-t-[10px] border border-white p-[6px] gap-[10px] transition-all duration-200 ease-out ${
-                          fileOver === key
-                            ? 'border-2 border-dashed border-white/80'
-                            : ''
-                        }`}
-                        data-column-key={key}
-                      >
-                        {/* Inner shadow overlay */}
-                        <div 
-                          className="absolute inset-0 pointer-events-none rounded-t-[10px]"
-                          style={{ boxShadow: 'inset 2px 2px 3.6px 0px rgba(255,255,255,0.24)' }}
-                        />
-
-                        {/* Header */}
-                        <div className="relative z-10 shrink-0 w-full">
-                          {isToday(key) ? (
-                            // White filled header ONLY for today
-                            <div 
-                              className="w-full rounded-[5px] bg-white flex flex-col items-center gap-px p-[5px]"
-                              style={{ color: DESIGN.colors.mainBlue }}
-                            >
-                              <div
-                                className="uppercase tracking-[0.2488px] leading-[19.5px]"
-                                style={{ fontFamily: "'Andale Mono', monospace", fontSize: '18px' }}
-                              >
-                                {fmtDOW(d).toUpperCase()}
-                              </div>
-                              <div
-                                className="uppercase tracking-[0.2488px] leading-[19.5px]"
-                                style={{ fontFamily: DESIGN.fonts.body, fontSize: '13px', fontWeight: 500 }}
-                              >
-                                {fmtMD(d)}
-                              </div>
-                            </div>
-                          ) : (
-                            // Border-only header for all other columns
-                            <div 
-                              className="w-full rounded-[5px] border border-white flex flex-col items-center gap-px p-[6px] text-white"
-                            >
-                              <div
-                                className="uppercase tracking-[0.2488px] leading-[19.5px]"
-                                style={{ fontFamily: "'Andale Mono', monospace", fontSize: '18px' }}
-                              >
-                                {fmtDOWShort(d)}
-                              </div>
-                              <div
-                                className="uppercase tracking-[0.2488px] leading-[19.5px]"
-                                style={{ fontFamily: DESIGN.fonts.body, fontSize: '13px', fontWeight: 500 }}
-                              >
-                                {fmtMD(d)}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Images area */}
-                        <div
-                          ref={(el) => {
-                            listRefs.current[key] = el;
-                          }}
-                          className="relative flex-1 overflow-y-auto overflow-x-hidden flex flex-col gap-[10px]"
-                          onDragEnter={(e) => onExtOver(e, key)}
-                          onDragOver={(e) => onExtOver(e, key)}
-                          onDrop={(e) => {
-                            if (e.dataTransfer?.files?.length) {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              onExtDrop(e, key);
-                            }
-                          }}
-                          style={{ touchAction: isDragging ? 'none' : 'auto' }}
-                          onTouchMove={(e) => {
-                            if (isDragging) e.preventDefault();
-                          }}
-                        >
-                          {isPast(key) && (
-                            <div className="pointer-events-none absolute inset-0 rounded-[5px] bg-[#0037ae]/60 z-10" />
-                          )}
-                          {render.length > 0 && phIdx === 0 && (
-                            <Placeholder
-                              onDragOverBlock={(e) => {
-                                if (e.dataTransfer?.types?.includes('Files')) {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                }
-                              }}
-                              onDropBlock={(e) => {
-                                if (e.dataTransfer?.files?.length) {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  onExtDrop(e, key);
-                                }
-                              }}
-                            />
-                          )}
-                          {render.map((it, idx) => (
-                            <React.Fragment key={it.id}>
-                              {phIdx === idx &&
-                                idx > 0 &&
-                                idx < render.length && (
-                                  <Placeholder
-                                    onDragOverBlock={(e) => {
-                                      if (
-                                        e.dataTransfer?.types?.includes('Files')
-                                      ) {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                      }
-                                    }}
-                                    onDropBlock={(e) => {
-                                      if (e.dataTransfer?.files?.length) {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        onExtDrop(e, key);
-                                      }
-                                    }}
-                                  />
-                                )}
-                              <Draggable draggableId={it.id} index={idx}>
-                                {(provided, snap) => (
-                                  <div
-                                    ref={provided.innerRef}
-                                    {...provided.draggableProps}
-                                    {...provided.dragHandleProps}
-                                    data-item-id={it.id}
-                                    className={`group relative select-none shrink-0 ${
-                                      snap.isDragging ? 'rotate-1' : ''
-                                    }`}
-                                    style={{
-                                      ...provided.draggableProps.style,
-                                      touchAction: isDragging ? 'none' : 'auto',
-                                    }}
-                                  >
-                                    {/* Event Card */}
-                                    <div 
-                                      className="relative w-full bg-white rounded-[5px] overflow-hidden cursor-pointer"
-                                      style={{ boxShadow: '0px 4px 4px 0px rgba(0,0,0,0.25)' }}
-                                      onClick={() =>
-                                        setViewer({
-                                          url: it.dataUrl,
-                                          name: it.name,
-                                          dayKey: key,
-                                          id: it.id,
-                                          fav: !!it.fav,
-                                          note: it.note || '',
-                                        })
-                                      }
-                                    >
-                                      <img
-                                        src={it.dataUrl}
-                                        alt={it.name || 'flyer'}
-                                        className="w-full h-auto object-cover"
-                                        draggable={false}
-                                        onDragStart={(e) => e.preventDefault()}
-                                        style={{
-                                          WebkitUserDrag: 'none',
-                                          userSelect: 'none',
-                                          WebkitTouchCallout: 'none',
-                                        } as React.CSSProperties}
-                                      />
-                                      {/* Inner shadow on card */}
-                                      <div 
-                                        className="absolute inset-0 pointer-events-none"
-                                        style={{ boxShadow: 'inset 1px 2px 2.8px 0px rgba(255,255,255,0.34)' }}
-                                      />
-                                    </div>
-
-                                    {/* Delete button */}
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setDeleteConfirm({
-                                          dayKey: key,
-                                          id: it.id,
-                                        });
-                                      }}
-                                      className={`absolute top-2 left-2 w-7 h-7 rounded-full bg-red-600 text-white shadow-md grid place-items-center transition-opacity ${
-                                        isTouch
-                                          ? 'opacity-0 pointer-events-none'
-                                          : 'opacity-0 group-hover:opacity-100'
-                                      }`}
-                                      title="delete"
-                                    >
-                                      <Trash2 className="w-3.5 h-3.5" />
-                                    </button>
-
-                                    {/* Action buttons */}
-                                    <div className="absolute top-2 right-2 flex flex-col gap-1.5">
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          toggleFav(key, it.id, !it.fav);
-                                        }}
-                                        className={`w-7 h-7 rounded-full grid place-items-center transition-opacity shadow-md ${
-                                          it.fav
-                                            ? 'bg-[#0037ae]'
-                                            : 'bg-white/90'
-                                        } ${
-                                          it.fav
-                                            ? ''
-                                            : isTouch
-                                            ? 'opacity-0 pointer-events-none'
-                                            : 'opacity-0 group-hover:opacity-100'
-                                        }`}
-                                        title={
-                                          it.fav ? 'unfavorite' : 'favorite'
-                                        }
-                                      >
-                                        <Star
-                                          className="w-3.5 h-3.5"
-                                          {...(it.fav
-                                            ? { color: 'white', fill: 'white' }
-                                            : { color: '#0037ae' })}
-                                        />
-                                      </button>
-
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          copyImageToClipboard(it, e);
-                                        }}
-                                        className={`w-7 h-7 rounded-full bg-white/90 shadow-md grid place-items-center transition-opacity ${
-                                          isTouch
-                                            ? 'opacity-0 pointer-events-none'
-                                            : 'opacity-0 group-hover:opacity-100'
-                                        }`}
-                                        title="download image"
-                                      >
-                                        <Copy className="w-3.5 h-3.5 text-[#0037ae]" />
-                                      </button>
-
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          copyImageLink(key, it.id, e);
-                                        }}
-                                        className={`w-7 h-7 rounded-full bg-white/90 shadow-md grid place-items-center transition-opacity ${
-                                          isTouch
-                                            ? 'opacity-0 pointer-events-none'
-                                            : 'opacity-0 group-hover:opacity-100'
-                                        }`}
-                                        title="copy link to image"
-                                      >
-                                        <Link2 className="w-3.5 h-3.5 text-[#0037ae]" />
-                                      </button>
-                                    </div>
-                                  </div>
-                                )}
-                              </Draggable>
-                            </React.Fragment>
-                          ))}
-                          {provided.placeholder}
-                        </div>
-
-                        {/* Add button */}
-                        <div className="relative z-10 shrink-0">
-                          <ColumnAddBar dayKey={key} onFiles={addFilesToDay} />
-                        </div>
-                      </div>
-                    )}
-                  </Droppable>
+                  <DayColumn
+                    date={d}
+                    dayKey={key}
+                    items={items}
+                    width={w}
+                    isToday={isToday(key)}
+                    isPast={isPast(key)}
+                    isDragging={isDragging}
+                    isTouch={isTouch}
+                    fileOver={fileOver}
+                    externalHover={externalHover}
+                    showFavOnly={showFavOnly}
+                    isExpanded={expandedDay === key}
+                    onToggleExpand={toggleExpandDay}
+                    onExtOver={onExtOver}
+                    onExtLeave={onExtLeave}
+                    onExtDrop={onExtDrop}
+                    onFilesAdded={addFilesToDay}
+                    onViewImage={(item, dayKey) => {
+                      setViewer({
+                        url: item.dataUrl,
+                        name: item.name,
+                        dayKey,
+                        id: item.id,
+                        fav: !!item.fav,
+                        note: item.note || '',
+                      });
+                    }}
+                    onDeleteImage={(dayKey, id) => {
+                      setDeleteConfirm({ dayKey, id });
+                    }}
+                    onToggleFav={toggleFav}
+                    onCopyImage={copyImageToClipboard}
+                    onCopyLink={copyImageLink}
+                    columnRef={(el) => {
+                      columnRefs.current[key] = el;
+                    }}
+                    listRef={(el) => {
+                      listRefs.current[key] = el;
+                    }}
+                  />
                 </React.Fragment>
               );
             })}
@@ -1475,330 +991,73 @@ export default function PostBills() {
 
       {/* Image Viewer Modal */}
       {viewer && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
-          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-8"
-          onClick={() => {
+        <ImageViewer
+          viewer={viewer}
+          showNotes={showNotes}
+          isTouch={isTouch}
+          onClose={() => {
             setViewer(null);
             setShowNotes(false);
           }}
-        >
-          <button
-            onClick={() => {
-              setViewer(null);
-              setShowNotes(false);
-            }}
-            className="fixed top-4 right-4 z-[60] w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 grid place-items-center transition-all"
-            title="close"
-            aria-label="close"
-          >
-            <X className="w-6 h-6 text-white" />
-          </button>
-
-          <div className="relative max-w-4xl w-full flex flex-col items-center gap-4">
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-              className="relative flex justify-center group min-h-[200px]"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <img
-                src={viewer.url}
-                alt={viewer.name || 'flyer'}
-                className="max-w-full max-h-[60vh] object-contain rounded-[10px] shadow-2xl"
-              />
-
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setDeleteConfirm({ dayKey: viewer.dayKey, id: viewer.id });
-                }}
-                className={`absolute top-3 left-3 z-10 w-10 h-10 rounded-full bg-red-600 text-white shadow-lg grid place-items-center ${
-                  isTouch ? '' : 'opacity-0 group-hover:opacity-100'
-                } transition-opacity`}
-                title="delete"
-                aria-label="delete"
-              >
-                <Trash2 className="w-5 h-5" />
-              </button>
-
-              <div
-                className={`absolute top-3 right-3 z-10 flex flex-col gap-2 ${
-                  isTouch ? '' : 'opacity-0 group-hover:opacity-100'
-                } transition-opacity`}
-              >
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleFav(viewer.dayKey, viewer.id, !viewer.fav);
-                    setViewer((v) => (v ? { ...v, fav: !v.fav } : v));
-                  }}
-                  className={`w-10 h-10 rounded-full grid place-items-center shadow-lg ${
-                    viewer.fav
-                      ? 'bg-[#0037ae]'
-                      : 'bg-white'
-                  }`}
-                  title={viewer.fav ? 'unfavorite' : 'favorite'}
-                  aria-label="favorite"
-                >
-                  <Star
-                    className="w-5 h-5"
-                    {...(viewer.fav ? { color: 'white', fill: 'white' } : { color: '#0037ae' })}
-                  />
-                </button>
-
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    copyImageToClipboard(viewer, e);
-                  }}
-                  className="w-10 h-10 rounded-full bg-white shadow-lg grid place-items-center"
-                  title="copy image"
-                  aria-label="copy image"
-                >
-                  <Copy className="w-5 h-5 text-[#0037ae]" />
-                </button>
-
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    copyImageLink(viewer.dayKey, viewer.id, e);
-                  }}
-                  className="w-10 h-10 rounded-full bg-white shadow-lg grid place-items-center"
-                  title="copy link"
-                  aria-label="copy link"
-                >
-                  <Link2 className="w-5 h-5 text-[#0037ae]" />
-                </button>
-
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowNotes((prev) => !prev);
-                  }}
-                  className={`w-10 h-10 rounded-full grid place-items-center shadow-lg ${
-                    viewer.note
-                      ? 'bg-[#0037ae]'
-                      : 'bg-white'
-                  }`}
-                  title={viewer.note ? 'toggle notes' : 'add notes'}
-                  aria-label="toggle notes"
-                >
-                  <FileText
-                    className="w-5 h-5"
-                    {...(viewer.note ? { color: 'white' } : { color: '#0037ae' })}
-                  />
-                </button>
-              </div>
-            </motion.div>
-
-            {showNotes && (
-              <motion.div
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{
-                  duration: 0.25,
-                  delay: 0.1,
-                  ease: [0.16, 1, 0.3, 1],
-                }}
-                className="w-full max-w-2xl p-4 rounded-lg bg-white shadow-xl"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <label className="block text-sm font-medium text-neutral-700 mb-2">
-                  Notes
-                </label>
-                <textarea
-                  value={viewer.note || ''}
-                  onChange={(e) => {
-                    const newNote = e.target.value;
-                    setViewer((v) => (v ? { ...v, note: newNote } : v));
-                    updateImageNote(viewer.dayKey, viewer.id, newNote);
-                  }}
-                  placeholder="Add notes about this image..."
-                  className="w-full px-3 py-2 rounded-lg border border-neutral-200 bg-neutral-50 focus:bg-white outline-none min-h-[100px] resize-y"
-                />
-              </motion.div>
-            )}
-          </div>
-        </motion.div>
+          onDelete={() => {
+            setDeleteConfirm({ dayKey: viewer.dayKey, id: viewer.id });
+          }}
+          onToggleFav={() => {
+            toggleFav(viewer.dayKey, viewer.id, !viewer.fav);
+            setViewer((v) => (v ? { ...v, fav: !v.fav } : v));
+          }}
+          onCopyLink={(e) => copyImageLink(viewer.dayKey, viewer.id, e)}
+          onToggleNotes={() => setShowNotes((prev) => !prev)}
+          onUpdateNote={(note) => {
+            setViewer((v) => (v ? { ...v, note } : v));
+            updateImageNote(viewer.dayKey, viewer.id, note);
+          }}
+        />
       )}
 
       {/* Delete Confirmation Modal */}
       {deleteConfirm && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm grid place-items-center p-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white shadow-xl p-5 space-y-4">
-            <h3 className="text-lg font-semibold text-neutral-900">
-              Delete Image?
-            </h3>
-            <p className="text-sm text-neutral-600">
-              Are you sure you want to delete this image? This action cannot be
-              undone.
-            </p>
-            <div className="flex gap-2 justify-end">
-              <button
-                onClick={() => setDeleteConfirm(null)}
-                className="px-4 py-2 rounded-lg bg-neutral-100 text-neutral-800 hover:bg-neutral-200"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  removeImage(deleteConfirm.dayKey, deleteConfirm.id);
-                  if (
-                    viewer &&
-                    viewer.dayKey === deleteConfirm.dayKey &&
-                    viewer.id === deleteConfirm.id
-                  ) {
-                    setViewer(null);
-                    setShowNotes(false);
-                  }
-                }}
-                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
+        <DeleteConfirm
+          onCancel={() => setDeleteConfirm(null)}
+          onConfirm={() => {
+            removeImage(deleteConfirm.dayKey, deleteConfirm.id);
+            if (
+              viewer &&
+              viewer.dayKey === deleteConfirm.dayKey &&
+              viewer.id === deleteConfirm.id
+            ) {
+              setViewer(null);
+              setShowNotes(false);
+            }
+          }}
+        />
       )}
 
       {/* Slug Prompt Modal */}
       {showSlugPrompt && (
-        <div
-          className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm grid place-items-center p-4"
-          role="dialog"
-          aria-modal
-        >
-          <div className="w-full max-w-sm rounded-2xl bg-white shadow-xl p-5 space-y-3">
-            <div className="text-sm text-neutral-800">
-              create/go to existing board
-            </div>
-            <input
-              autoFocus={!isTouch}
-              value={slugDraft}
-              onChange={(e) =>
-                setSlugDraft(e.target.value.replace(/[^a-zA-Z0-9-_]/g, '-'))
-              }
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && slugDraft) {
-                  setSlug(slugDraft);
-                  setShowSlugPrompt(false);
-                }
-              }}
-              className="w-full px-3 py-2 rounded-lg border border-neutral-200 bg-neutral-50 focus:bg-white outline-none"
-            />
-            <div className="text-[12px] text-neutral-500">
-              tap the POSTBILLS logo anytime to name/switch boards. we'll
-              update the url to /your-slug. bookmark it. anyone with the link
-              can view/edit.
-            </div>
-            <div className="flex gap-2 justify-end">
-              <button
-                disabled={!slugDraft}
-                onClick={() => {
-                  if (slugDraft) {
-                    setSlug(slugDraft);
-                    setShowSlugPrompt(false);
-                  }
-                }}
-                className="px-3 py-1.5 rounded-lg bg-[#0037ae] text-white disabled:opacity-50"
-              >
-                continue
-              </button>
-            </div>
-          </div>
-        </div>
+        <SlugPrompt
+          slugDraft={slugDraft}
+          isTouch={isTouch}
+          onSlugChange={setSlugDraft}
+          onContinue={() => {
+            if (slugDraft) {
+              setSlug(slugDraft);
+              setShowSlugPrompt(false);
+            }
+          }}
+          canDismiss={!!slug}
+          onDismiss={() => {
+            setSlugDraft(slug);
+            setShowSlugPrompt(false);
+          }}
+        />
       )}
-
-      {/* Help Button */}
-      <button
-        onClick={() => setShowHelp(true)}
-        className="fixed bottom-4 right-4 z-40 w-10 h-10 rounded-full bg-white shadow-lg grid place-items-center"
-        title="help"
-        aria-label="help"
-      >
-        <HelpCircle className="w-5 h-5 text-[#0037ae]" />
-      </button>
 
       {/* Help Popover */}
-      {showHelp && (
-        <>
-          <div
-            className="fixed inset-0 z-40"
-            onClick={() => setShowHelp(false)}
-          />
-          <div
-            className="fixed bottom-16 right-4 z-50 w-72 rounded-xl bg-white shadow-xl border border-neutral-200 p-3 text-[12px] text-neutral-700"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="font-medium mb-1">quick tips</div>
-            <ul className="list-disc pl-4 space-y-1">
-              <li>tap the POSTBILLS logo to create/go to your board.</li>
-              <li>copy your link with the link icon.</li>
-              <li>drag images from desktop into a day.</li>
-              <li>use filters to hide empty/past or show only favorites.</li>
-              <li>tap today to center the current date.</li>
-              <li>tap outside this box to close.</li>
-            </ul>
-          </div>
-        </>
-      )}
+      <Help showHelp={showHelp} onToggleHelp={() => setShowHelp((v) => !v)} />
 
       {/* Copy Feedback Toast */}
-      <AnimatePresence>
-        {copyFeedback.show && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8, x: -10 }}
-            animate={{ opacity: 1, scale: 1, x: 0 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            transition={{ duration: 0.2 }}
-            style={{
-              position: 'fixed',
-              left: copyFeedback.x,
-              top: copyFeedback.y,
-              zIndex: 9999,
-            }}
-            className="bg-[#0037ae] text-white text-xs px-3 py-1.5 rounded-full shadow-lg font-medium whitespace-nowrap"
-          >
-            {copyFeedback.type === 'image'
-              ? 'Image downloaded!'
-              : 'Link copied!'}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-function ColumnAddBar({ dayKey, onFiles }: { dayKey: string; onFiles: (dayKey: string, files: FileList) => void }) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  return (
-    <div className="shrink-0 relative">
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        multiple
-        className="hidden"
-        onChange={async (e) => {
-          if (e.target.files?.length) {
-            await onFiles(dayKey, e.target.files);
-            e.target.value = '';
-          }
-        }}
-      />
-      <button
-        onClick={() => inputRef.current?.click()}
-        className="w-full h-[52px] rounded-[5px] border border-white flex items-center justify-center hover:bg-white/10 transition-colors"
-        title="add images"
-        aria-label="add images"
-      >
-        <PlusIcon />
-      </button>
+      <CopyFeedback copyFeedback={copyFeedback} />
     </div>
   );
 }

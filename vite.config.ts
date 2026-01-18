@@ -7,6 +7,11 @@ const isStackblitz = process.env.STACKBLITZ === '1' || process.env.NODE_ENV === 
 
 // https://vite.dev/config/
 export default defineConfig({
+  server: {
+    host: '0.0.0.0', // Listen on all network interfaces
+    port: 5173, // Default Vite port
+    strictPort: false, // Allow using a different port if 5173 is busy
+  },
   plugins: [
     react(),
     // Conditionally enable PWA plugin (disable in Stackblitz for preview compatibility)
