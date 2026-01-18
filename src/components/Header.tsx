@@ -41,7 +41,7 @@ export function Header({
       }}
     >
       <div
-        className="w-full px-[10px] pb-[10px] flex items-center gap-[15px]"
+        className="w-full px-[10px] pb-[22px] flex items-center gap-[15px]"
         style={{
           paddingTop: 'max(env(safe-area-inset-top, 0px), 10px)',
         }}
