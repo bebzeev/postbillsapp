@@ -770,8 +770,9 @@ export default function PostBills() {
       style={{
         backgroundColor: DESIGN.colors.mainBlue,
         fontFamily: DESIGN.fonts.body,
-        minHeight: '100vh',
-        minHeight: '100dvh', // Dynamic viewport height for mobile
+        height: '100dvh', // Exact viewport height for mobile
+        position: 'fixed',
+        inset: 0,
       }}
     >
       {/* Header */}

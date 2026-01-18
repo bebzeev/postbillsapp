@@ -43,6 +43,7 @@ if ('serviceWorker' in navigator && typeof window !== 'undefined') {
 if (Capacitor.isNativePlatform()) {
   StatusBar.setStyle({ style: Style.Light }).catch(console.error);
   StatusBar.setBackgroundColor({ color: '#0037ae' }).catch(console.error);
+  StatusBar.setOverlaysWebView({ overlay: false }).catch(console.error);
 }
 
 createRoot(document.getElementById('root')!).render(
