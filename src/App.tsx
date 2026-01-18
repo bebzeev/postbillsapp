@@ -885,7 +885,7 @@ export default function PostBills() {
             height: `calc(100dvh - ${headerH}px)`,
             touchAction: isDragging ? 'none' : 'pan-x',
             overscrollBehaviorX: 'contain',
-            overscrollBehaviorY: 'contain',
+            overscrollBehaviorY: 'none',
           }}
           onTouchMove={(e) => {
             if (isDragging) e.preventDefault();
@@ -896,7 +896,6 @@ export default function PostBills() {
             className="h-full flex items-start gap-[8px] pl-0"
             style={{
               paddingRight: 'max(env(safe-area-inset-right, 0px), 10px)',
-              paddingBottom: 'env(safe-area-inset-bottom, 0px)',
             }}
           >
             {/* Load past days button */}

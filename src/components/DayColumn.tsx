@@ -110,7 +110,7 @@ export function DayColumn({
             minWidth: isExpanded ? '100vw' : width,
             width: isExpanded ? '100vw' : width,
             touchAction: isDragging ? 'none' : 'auto',
-            overscrollBehaviorY: 'contain',
+            overscrollBehaviorY: 'none',
             transition: 'width 0.4s cubic-bezier(0.16, 1, 0.3, 1), min-width 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
           }}
           onTouchMove={(e) => {
