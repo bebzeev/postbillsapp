@@ -39,6 +39,7 @@ export function ImageViewer({
         right: 0,
         bottom: 0,
         minHeight: '100dvh',
+        paddingBottom: `calc(2rem + env(safe-area-inset-bottom, 0px))`,
       }}
       onClick={onClose}
     >
