@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Droppable } from '@hello-pangea/dnd';
 import { DESIGN } from '../constants/design';
 import { fmtDOW, fmtDOWShort, fmtMD } from '../utils/date';
@@ -18,6 +18,8 @@ interface DayColumnProps {
   fileOver: string | null;
   externalHover: ExternalHover;
   showFavOnly: boolean;
+  isExpanded?: boolean;
+  onToggleExpand?: (dayKey: string) => void;
   onExtOver: (e: React.DragEvent, dayKey: string) => void;
   onExtLeave: (e: React.DragEvent, dayKey: string) => void;
   onExtDrop: (e: React.DragEvent, dayKey: string) => void;
@@ -43,6 +45,8 @@ export function DayColumn({
   fileOver,
   externalHover,
   showFavOnly,
+  isExpanded = false,
+  onToggleExpand,
   onExtOver,
   onExtLeave,
   onExtDrop,
@@ -58,6 +62,38 @@ export function DayColumn({
   const phIdx = externalHover.dayKey === dayKey ? externalHover.index : -1;
   const render = showFavOnly ? items.filter((x) => !!x.fav) : items;
 
+  // Long-press state
+  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+  const [isLongPressing, setIsLongPressing] = useState(false);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (!isTouch || !onToggleExpand) return;
+
+    setIsLongPressing(true);
+    const duration = isExpanded ? 1000 : 1500; // 1s to collapse, 1.5s to expand
+
+    longPressTimer.current = setTimeout(() => {
+      onToggleExpand(dayKey);
+      setIsLongPressing(false);
+    }, duration);
+  };
+
+  const handleTouchEnd = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+    setIsLongPressing(false);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (longPressTimer.current) {
+        clearTimeout(longPressTimer.current);
+      }
+    };
+  }, []);
+
   return (
     <Droppable droppableId={dayKey}>
       {(provided, snap) => (
@@ -71,19 +107,20 @@ export function DayColumn({
           onDragLeave={(e) => onExtLeave(e, dayKey)}
           onDrop={(e) => onExtDrop(e, dayKey)}
           style={{
-            minWidth: width,
-            width: width,
+            minWidth: isExpanded ? '100vw' : width,
+            width: isExpanded ? '100vw' : width,
             touchAction: isDragging ? 'none' : 'auto',
             overscrollBehaviorY: 'contain',
+            transition: 'width 0.4s cubic-bezier(0.16, 1, 0.3, 1), min-width 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
           }}
           onTouchMove={(e) => {
             if (isDragging) e.preventDefault();
           }}
-          className={`relative h-full flex flex-col rounded-t-[10px] border border-white p-[6px] gap-[10px] transition-all duration-200 ease-out ${
+          className={`relative h-full flex flex-col rounded-t-[10px] border border-white p-[6px] gap-[10px] ${
             fileOver === dayKey
               ? 'border-2 border-dashed border-white/80'
               : ''
-          }`}
+          } ${isExpanded ? 'z-30' : ''}`}
           data-column-key={dayKey}
         >
           {/* Inner shadow overlay */}
@@ -95,11 +132,18 @@ export function DayColumn({
           />
 
           {/* Header */}
-          <div className="relative z-10 shrink-0 w-full">
+          <div
+            className="relative z-10 shrink-0 w-full"
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+            onTouchCancel={handleTouchEnd}
+          >
             {isToday ? (
               // White filled header ONLY for today
               <div
-                className="w-full rounded-[5px] bg-white flex flex-col items-center gap-px p-[5px]"
+                className={`w-full rounded-[5px] bg-white flex flex-col items-center gap-px p-[6px] transition-opacity ${
+                  isLongPressing ? 'opacity-70' : ''
+                }`}
                 style={{ color: DESIGN.colors.mainBlue }}
               >
                 <div
@@ -124,7 +168,11 @@ export function DayColumn({
               </div>
             ) : (
               // Border-only header for all other columns
-              <div className="w-full rounded-[5px] border border-white flex flex-col items-center gap-px p-[6px] text-white">
+              <div
+                className={`w-full rounded-[5px] border border-white flex flex-col items-center gap-px p-[5px] text-white transition-opacity ${
+                  isLongPressing ? 'opacity-70' : ''
+                }`}
+              >
                 <div
                   className="uppercase tracking-[0.2488px] leading-[19.5px]"
                   style={{
@@ -157,7 +205,11 @@ export function DayColumn({
             {/* Scrollable images container */}
             <div
               ref={listRef}
-              className="h-full overflow-y-auto overflow-x-hidden flex flex-col gap-[10px]"
+              className={`h-full overflow-y-auto overflow-x-hidden ${
+                isExpanded
+                  ? 'grid grid-cols-3 gap-[10px] auto-rows-min'
+                  : 'flex flex-col gap-[10px]'
+              }`}
               onDragEnter={(e) => onExtOver(e, dayKey)}
               onDragOver={(e) => onExtOver(e, dayKey)}
               onDrop={(e) => {

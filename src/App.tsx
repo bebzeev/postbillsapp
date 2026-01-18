@@ -111,8 +111,10 @@ export default function PostBills() {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
   const [syncMessage, setSyncMessage] = useState<string>('');
   const [copied, setCopied] = useState(false);
+  const [expandedDay, setExpandedDay] = useState<string | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const lastScrollLeft = useRef<number>(0);
   const columnRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
   const listRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
   const headerRef = useRef<HTMLDivElement>(null);
@@ -358,6 +360,29 @@ export default function PostBills() {
     s.addEventListener('touchmove', h, { passive: false });
     return () => s.removeEventListener('touchmove', h);
   }, [isDragging]);
+
+  // Detect horizontal scroll to collapse expanded day
+  useEffect(() => {
+    const s = scrollRef.current;
+    if (!s || !expandedDay) return;
+
+    const handleScroll = () => {
+      const currentScrollLeft = s.scrollLeft;
+      const scrollDelta = Math.abs(currentScrollLeft - lastScrollLeft.current);
+
+      // If scrolled more than 50px, collapse the expanded day
+      if (scrollDelta > 50) {
+        setExpandedDay(null);
+      }
+
+      lastScrollLeft.current = currentScrollLeft;
+    };
+
+    s.addEventListener('scroll', handleScroll);
+    lastScrollLeft.current = s.scrollLeft;
+
+    return () => s.removeEventListener('scroll', handleScroll);
+  }, [expandedDay]);
 
   const prevFilters = useRef({ hideEmpty, showFavOnly });
   useEffect(() => {
@@ -765,6 +790,16 @@ export default function PostBills() {
     }
   }
 
+  function toggleExpandDay(dayKey: string) {
+    if (expandedDay === dayKey) {
+      setExpandedDay(null);
+    } else {
+      setExpandedDay(dayKey);
+      // Scroll the expanded column into view
+      setTimeout(() => scrollTo(dayKey, true), 100);
+    }
+  }
+
   return (
     <div
       className="w-full overflow-hidden flex flex-col"
@@ -873,6 +908,8 @@ export default function PostBills() {
                     fileOver={fileOver}
                     externalHover={externalHover}
                     showFavOnly={showFavOnly}
+                    isExpanded={expandedDay === key}
+                    onToggleExpand={toggleExpandDay}
                     onExtOver={onExtOver}
                     onExtLeave={onExtLeave}
                     onExtDrop={onExtDrop}

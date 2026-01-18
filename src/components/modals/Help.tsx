@@ -6,8 +6,8 @@ interface HelpProps {
 }
 
 export function Help({ showHelp, onToggleHelp }: HelpProps) {
-  // Format build timestamp in Eastern Time
-  const buildDate = new Date('2026-01-18T03:05:31Z');
+  // Format build timestamp in Eastern Time using document.lastModified
+  const buildDate = new Date(document.lastModified);
   const formatter = new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/New_York',
     month: 'short',
@@ -42,7 +42,7 @@ export function Help({ showHelp, onToggleHelp }: HelpProps) {
             className="fixed bottom-16 right-4 z-50 w-80 rounded-xl bg-white shadow-xl border border-neutral-200 p-3 text-[11px] text-neutral-700"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="font-medium mb-1 text-xs text-neutral-500">
+            <div className="font-medium mb-1 text-xs text-red-600">
               Last build: {buildTimestamp}
             </div>
             <div className="font-medium mb-1.5 mt-2">quick tips</div>
