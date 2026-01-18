@@ -1,6 +1,6 @@
 import React, { useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
-import { X, Trash2, Star, Copy, Link2, FileText, ChevronUp } from 'lucide-react';
+import { X, Trash2, Star, Copy, Download, FileText, ChevronUp } from 'lucide-react';
 import type { Viewer } from '../../types';
 
 interface ImageViewerProps {
@@ -11,7 +11,7 @@ interface ImageViewerProps {
   onDelete: () => void;
   onToggleFav: () => void;
   onCopyImage: (e: React.MouseEvent) => void;
-  onCopyLink: (e: React.MouseEvent) => void;
+  onDownloadImage: (e: React.MouseEvent) => void;
   onToggleNotes: () => void;
   onUpdateNote: (note: string) => void;
 }
@@ -30,7 +30,7 @@ export function ImageViewer({
   onDelete,
   onToggleFav,
   onCopyImage,
-  onCopyLink,
+  onDownloadImage,
   onToggleNotes,
   onUpdateNote,
 }: ImageViewerProps) {
@@ -71,20 +71,18 @@ export function ImageViewer({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.2 }}
-      className="fixed z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center"
+      className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center"
       style={{
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
+        zIndex: 9999,
         minHeight: '100vh',
-        height: '100dvh',
+        minHeight: '100dvh',
       }}
       onClick={handleBackdropClick}
     >
       <button
         onClick={onClose}
-        className="fixed top-4 right-4 z-[60] w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 grid place-items-center transition-all"
+        className="fixed top-4 right-4 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 grid place-items-center transition-all"
+        style={{ zIndex: 10000 }}
         title="close"
         aria-label="close"
       >
@@ -189,13 +187,13 @@ export function ImageViewer({
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onCopyLink(e);
+                onDownloadImage(e);
               }}
               className="w-10 h-10 rounded-full bg-white shadow-lg grid place-items-center"
-              title="copy link"
-              aria-label="copy link"
+              title="download image"
+              aria-label="download image"
             >
-              <Link2 className="w-5 h-5 text-[#0037ae]" />
+              <Download className="w-5 h-5 text-[#0037ae]" />
             </button>
 
             <button
@@ -229,7 +227,7 @@ export function ImageViewer({
                 stiffness: 400,
                 damping: 30,
               }}
-              className="absolute bottom-4 left-0 right-0 mx-auto w-[calc(100%-32px)] max-w-2xl p-3 rounded-lg bg-[#0037ae] shadow-xl"
+              className="absolute bottom-0 left-0 right-0 mx-auto w-[calc(100%-32px)] max-w-2xl p-3 rounded-lg bg-[#0037ae] shadow-xl"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-2">

@@ -23,6 +23,8 @@ export function CopyFeedback({ copyFeedback }: CopyFeedbackProps) {
           className="bg-[#0037ae] text-white text-xs px-3 py-1.5 rounded-full shadow-lg font-medium whitespace-nowrap"
         >
           {copyFeedback.type === 'image'
+            ? 'Image copied!'
+            : copyFeedback.type === 'download'
             ? 'Image downloaded!'
             : 'Link copied!'}
         </motion.div>

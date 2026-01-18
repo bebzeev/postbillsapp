@@ -618,6 +618,38 @@ export default function PostBills() {
     }
   }
 
+  async function downloadImage(item: ImageItem | Viewer, event?: React.MouseEvent) {
+    try {
+      const dataUrl = item.dataUrl || (item as Viewer).url;
+      if (!dataUrl) throw new Error('No image data available');
+
+      // Create a temporary link and trigger download
+      const link = document.createElement('a');
+      link.href = dataUrl;
+      link.download = item.name || 'postbills-image.jpg';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      if (event) {
+        const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+        setCopyFeedback({
+          show: true,
+          type: 'download',
+          x: rect.right + 10,
+          y: rect.top,
+        });
+        setTimeout(
+          () => setCopyFeedback({ show: false, type: '', x: 0, y: 0 }),
+          2000
+        );
+      }
+    } catch (err) {
+      console.error('Failed to download image:', err);
+      alert('Failed to download image');
+    }
+  }
+
   function getImageLink(dayKey: string, id: string) {
     const u = new URL(window.location.href);
     u.searchParams.set('img', `${dayKey}:${id}`);
@@ -973,7 +1005,7 @@ export default function PostBills() {
             setViewer((v) => (v ? { ...v, fav: !v.fav } : v));
           }}
           onCopyImage={(e) => copyImageToClipboard(viewer, e)}
-          onCopyLink={(e) => copyImageLink(viewer.dayKey, viewer.id, e)}
+          onDownloadImage={(e) => downloadImage(viewer, e)}
           onToggleNotes={() => setShowNotes((prev) => !prev)}
           onUpdateNote={(note) => {
             setViewer((v) => (v ? { ...v, note } : v));

@@ -211,9 +211,16 @@ export function DayColumn({
               ref={listRef}
               className={`h-full overflow-y-auto overflow-x-hidden ${
                 isExpanded
-                  ? 'grid grid-cols-3 gap-[10px] auto-rows-min'
+                  ? ''
                   : 'flex flex-col gap-[10px]'
               }`}
+              style={{
+                touchAction: isDragging ? 'none' : 'auto',
+                ...(isExpanded ? {
+                  columnCount: 3,
+                  columnGap: '10px',
+                } : {}),
+              }}
               onDragEnter={(e) => onExtOver(e, dayKey)}
               onDragOver={(e) => onExtOver(e, dayKey)}
               onDrop={(e) => {
@@ -223,7 +230,6 @@ export function DayColumn({
                   onExtDrop(e, dayKey);
                 }
               }}
-              style={{ touchAction: isDragging ? 'none' : 'auto' }}
               onTouchMove={(e) => {
                 if (isDragging) e.preventDefault();
               }}
@@ -264,18 +270,25 @@ export function DayColumn({
                     }}
                   />
                 )}
-                <ImageCard
-                  item={it}
-                  dayKey={dayKey}
-                  index={idx}
-                  isDragging={isDragging}
-                  isTouch={isTouch}
-                  onView={() => onViewImage(it, dayKey)}
-                  onDelete={() => onDeleteImage(dayKey, it.id)}
-                  onToggleFav={() => onToggleFav(dayKey, it.id, !it.fav)}
-                  onCopyImage={(e) => onCopyImage(it, e)}
-                  onCopyLink={(e) => onCopyLink(dayKey, it.id, e)}
-                />
+                <div
+                  style={{
+                    breakInside: 'avoid',
+                    marginBottom: isExpanded ? '10px' : '0',
+                  }}
+                >
+                  <ImageCard
+                    item={it}
+                    dayKey={dayKey}
+                    index={idx}
+                    isDragging={isDragging}
+                    isTouch={isTouch}
+                    onView={() => onViewImage(it, dayKey)}
+                    onDelete={() => onDeleteImage(dayKey, it.id)}
+                    onToggleFav={() => onToggleFav(dayKey, it.id, !it.fav)}
+                    onCopyImage={(e) => onCopyImage(it, e)}
+                    onCopyLink={(e) => onCopyLink(dayKey, it.id, e)}
+                  />
+                </div>
               </React.Fragment>
             ))}
             {provided.placeholder}
