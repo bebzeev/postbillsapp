@@ -1,4 +1,11 @@
-Last build: 2026-01-18 02:57:29 UTC
-Unix timestamp: 1768705049
+===========================================
+LAST FRESH BUILD
+===========================================
+Built at: 2026-01-18 03:05:31 UTC
+Unix timestamp: 1768705549
 
-This file is tracked in git and updates on every build.
+Forced fresh build (removed dist/ cache).
+All files synced to iOS at 03:05 UTC.
+
+This file is tracked in git.
+===========================================
