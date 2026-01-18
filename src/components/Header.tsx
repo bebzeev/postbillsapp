@@ -38,10 +38,14 @@ export function Header({
       className="shrink-0 border-b border-white/20"
       style={{
         boxShadow: '0px 4px 4px 0px rgba(0,0,0,0.25)',
-        paddingTop: 'env(safe-area-inset-top, 0px)',
       }}
     >
-      <div className="w-full px-[10px] pt-[10px] pb-[20px] flex items-center gap-[15px]">
+      <div
+        className="w-full px-[10px] pb-[20px] flex items-center gap-[15px]"
+        style={{
+          paddingTop: 'max(env(safe-area-inset-top, 0px), 10px)',
+        }}
+      >
         {/* Logo */}
         <button
           onClick={onShowSlugPrompt}

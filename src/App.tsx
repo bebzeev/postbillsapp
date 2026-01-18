@@ -766,10 +766,12 @@ export default function PostBills() {
 
   return (
     <div
-      className="w-full fixed inset-0 overflow-hidden flex flex-col"
+      className="w-full overflow-hidden flex flex-col"
       style={{
         backgroundColor: DESIGN.colors.mainBlue,
         fontFamily: DESIGN.fonts.body,
+        minHeight: '100vh',
+        minHeight: '100dvh', // Dynamic viewport height for mobile
       }}
     >
       {/* Header */}
@@ -808,7 +810,7 @@ export default function PostBills() {
         <div
           ref={scrollRef}
           style={{
-            height: `calc(100svh - ${headerH}px - env(safe-area-inset-bottom, 0px))`,
+            height: `calc(100dvh - ${headerH}px - env(safe-area-inset-top, 0px))`,
             touchAction: isDragging ? 'none' : 'pan-x',
             overscrollBehaviorX: 'contain',
             overscrollBehaviorY: 'contain',
@@ -818,7 +820,13 @@ export default function PostBills() {
           }}
           className="overflow-x-auto overflow-y-hidden"
         >
-          <div className="h-full flex items-start gap-[8px] pl-0 pt-[7px] pr-[10px]">
+          <div
+            className="h-full flex items-start gap-[8px] pl-0 pt-[7px]"
+            style={{
+              paddingRight: 'max(env(safe-area-inset-right, 0px), 10px)',
+              paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+            }}
+          >
             {visibleDays.map((d, i) => {
               const key = fmtKey(d);
               const items = board[key] || [];
