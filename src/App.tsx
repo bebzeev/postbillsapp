@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { DragDropContext } from '@hello-pangea/dnd';
-import { ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   serverTimestamp,
   writeBatch,
@@ -43,7 +43,8 @@ import type {
 
 export default function PostBills() {
   const [futureShown, setFutureShown] = useState(60);
-  const days = useMemo(() => genRange(futureShown), [futureShown]);
+  const [pastShown, setPastShown] = useState(30);
+  const days = useMemo(() => genRange(futureShown, pastShown), [futureShown, pastShown]);
   const todayKey = fmtKey(todayAtMidnight());
 
   const initialSlug = useMemo(() => {
@@ -828,6 +829,18 @@ export default function PostBills() {
               paddingBottom: 'env(safe-area-inset-bottom, 0px)',
             }}
           >
+            {/* Load past days button */}
+            {pastShown < 365 && (
+              <div className="flex items-center pl-4">
+                <button
+                  onClick={() => setPastShown((v) => Math.min(365, v + 30))}
+                  className="p-3 rounded-full bg-white text-[#0037ae] shadow-lg hover:bg-white/90"
+                  title="load 30 more days in the past"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+              </div>
+            )}
             {visibleDays.map((d, i) => {
               const key = fmtKey(d);
               const items = board[key] || [];
@@ -961,6 +974,11 @@ export default function PostBills() {
               setSlug(slugDraft);
               setShowSlugPrompt(false);
             }
+          }}
+          canDismiss={!!slug}
+          onDismiss={() => {
+            setSlugDraft(slug);
+            setShowSlugPrompt(false);
           }}
         />
       )}

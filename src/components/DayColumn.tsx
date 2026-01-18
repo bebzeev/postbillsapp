@@ -148,27 +148,30 @@ export function DayColumn({
             )}
           </div>
 
-          {/* Images area */}
-          <div
-            ref={listRef}
-            className="relative flex-1 overflow-y-auto overflow-x-hidden flex flex-col gap-[10px]"
-            onDragEnter={(e) => onExtOver(e, dayKey)}
-            onDragOver={(e) => onExtOver(e, dayKey)}
-            onDrop={(e) => {
-              if (e.dataTransfer?.files?.length) {
-                e.preventDefault();
-                e.stopPropagation();
-                onExtDrop(e, dayKey);
-              }
-            }}
-            style={{ touchAction: isDragging ? 'none' : 'auto' }}
-            onTouchMove={(e) => {
-              if (isDragging) e.preventDefault();
-            }}
-          >
+          {/* Images area wrapper */}
+          <div className="relative flex-1 overflow-hidden">
+            {/* Past day overlay - positioned over the entire images area */}
             {isPast && (
               <div className="pointer-events-none absolute inset-0 rounded-[5px] bg-[#0037ae]/60 z-10" />
             )}
+            {/* Scrollable images container */}
+            <div
+              ref={listRef}
+              className="h-full overflow-y-auto overflow-x-hidden flex flex-col gap-[10px]"
+              onDragEnter={(e) => onExtOver(e, dayKey)}
+              onDragOver={(e) => onExtOver(e, dayKey)}
+              onDrop={(e) => {
+                if (e.dataTransfer?.files?.length) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onExtDrop(e, dayKey);
+                }
+              }}
+              style={{ touchAction: isDragging ? 'none' : 'auto' }}
+              onTouchMove={(e) => {
+                if (isDragging) e.preventDefault();
+              }}
+            >
             {render.length > 0 && phIdx === 0 && (
               <Placeholder
                 onDragOverBlock={(e) => {
@@ -220,6 +223,7 @@ export function DayColumn({
               </React.Fragment>
             ))}
             {provided.placeholder}
+            </div>
           </div>
 
           {/* Add button */}

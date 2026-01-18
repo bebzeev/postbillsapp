@@ -19,8 +19,8 @@ export const fmtDOW = (d: Date) => d.toLocaleDateString(undefined, { weekday: 'l
 export const fmtDOWShort = (d: Date) =>
   (d.toLocaleDateString('en-US', { weekday: 'short' }) || '').slice(0, 3).toUpperCase();
 
-export const genRange = (future: number) => {
-  const s = new Date(todayAtMidnight().getTime() - 30 * DAY_MS),
+export const genRange = (future: number, past: number = 30) => {
+  const s = new Date(todayAtMidnight().getTime() - past * DAY_MS),
     e = new Date(todayAtMidnight().getTime() + future * DAY_MS),
     a: Date[] = [];
   for (let t = s.getTime(); t <= e.getTime(); t += DAY_MS) a.push(new Date(t));

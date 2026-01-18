@@ -1,6 +1,6 @@
 import React from 'react';
 import { Draggable } from '@hello-pangea/dnd';
-import { Star, Trash2, Copy, Link2 } from 'lucide-react';
+import { Star, Trash2, Copy, Link2, FileText } from 'lucide-react';
 import type { ImageItem } from '../types';
 
 interface ImageCardProps {
@@ -69,6 +69,12 @@ export function ImageCard({
                 boxShadow: 'inset 1px 2px 2.8px 0px rgba(255,255,255,0.34)',
               }}
             />
+            {/* Note indicator */}
+            {item.note && (
+              <div className="absolute bottom-2 left-2 w-6 h-6 rounded-full bg-[#0037ae] shadow-md grid place-items-center">
+                <FileText className="w-3.5 h-3.5 text-white" />
+              </div>
+            )}
           </div>
 
           {/* Delete button */}

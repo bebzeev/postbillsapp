@@ -1,6 +1,6 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { X, Trash2, Star, Copy, Link2, FileText } from 'lucide-react';
+import React, { useRef, useState, useCallback } from 'react';
+import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
+import { X, Trash2, Star, Copy, Link2, FileText, ChevronUp } from 'lucide-react';
 import type { Viewer } from '../../types';
 
 interface ImageViewerProps {
@@ -16,6 +16,12 @@ interface ImageViewerProps {
   onUpdateNote: (note: string) => void;
 }
 
+// Inline type for drag info since PanInfo is not exported in framer-motion v12
+interface DragInfo {
+  offset: { x: number; y: number };
+  velocity: { x: number; y: number };
+}
+
 export function ImageViewer({
   viewer,
   showNotes,
@@ -28,6 +34,28 @@ export function ImageViewer({
   onToggleNotes,
   onUpdateNote,
 }: ImageViewerProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragY = useMotionValue(0);
+  
+  // Transform for the swipe indicator opacity
+  const indicatorOpacity = useTransform(dragY, [-50, 0], [0, 1]);
+  
+  const handleDragEnd = useCallback((event: MouseEvent | TouchEvent | PointerEvent, info: DragInfo) => {
+    setIsDragging(false);
+    // If swiped up more than 50px with velocity, show notes
+    if (info.offset.y < -50 || info.velocity.y < -200) {
+      if (!showNotes) {
+        onToggleNotes();
+      }
+    }
+    // If swiped down more than 50px with velocity, hide notes
+    if (info.offset.y > 50 || info.velocity.y > 200) {
+      if (showNotes) {
+        onToggleNotes();
+      }
+    }
+  }, [showNotes, onToggleNotes]);
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -46,13 +74,36 @@ export function ImageViewer({
         <X className="w-6 h-6 text-white" />
       </button>
 
-      <div className="relative max-w-4xl w-full flex flex-col items-center gap-4">
+      <motion.div 
+        ref={containerRef}
+        className="relative max-w-4xl w-full flex flex-col items-center gap-4"
+        drag={isTouch ? "y" : false}
+        dragConstraints={{ top: 0, bottom: 0 }}
+        dragElastic={0.2}
+        onDragStart={() => setIsDragging(true)}
+        onDragEnd={handleDragEnd}
+        style={{ y: dragY }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Swipe indicator */}
+        {isTouch && !showNotes && (
+          <motion.div 
+            className="absolute -bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 pointer-events-none"
+            style={{ opacity: indicatorOpacity }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 0.7 }}
+            transition={{ delay: 0.5 }}
+          >
+            <ChevronUp className="w-5 h-5 text-white animate-bounce" />
+            <span className="text-xs text-white/70">swipe for notes</span>
+          </motion.div>
+        )}
+        
         <motion.div
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
           className="relative flex justify-center group min-h-[200px]"
-          onClick={(e) => e.stopPropagation()}
         >
           <img
             src={viewer.url}
@@ -141,30 +192,40 @@ export function ImageViewer({
           </div>
         </motion.div>
 
-        {showNotes && (
-          <motion.div
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{
-              duration: 0.25,
-              delay: 0.1,
-              ease: [0.16, 1, 0.3, 1],
-            }}
-            className="w-full max-w-2xl p-4 rounded-lg bg-white shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <label className="block text-sm font-medium text-neutral-700 mb-2">
-              Notes
-            </label>
-            <textarea
-              value={viewer.note || ''}
-              onChange={(e) => onUpdateNote(e.target.value)}
-              placeholder="Add notes about this image..."
-              className="w-full px-3 py-2 rounded-lg border border-neutral-200 bg-neutral-50 focus:bg-white outline-none min-h-[100px] resize-y"
-            />
-          </motion.div>
-        )}
-      </div>
+        <AnimatePresence>
+          {showNotes && (
+            <motion.div
+              key="notes-panel"
+              initial={{ y: 60, opacity: 0, scale: 0.95 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              exit={{ y: 60, opacity: 0, scale: 0.95 }}
+              transition={{
+                type: 'spring',
+                stiffness: 400,
+                damping: 30,
+              }}
+              className="w-full max-w-2xl p-4 rounded-lg bg-white shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-neutral-700">
+                  Notes
+                </label>
+                {isTouch && (
+                  <span className="text-xs text-neutral-400">swipe down to close</span>
+                )}
+              </div>
+              <textarea
+                value={viewer.note || ''}
+                onChange={(e) => onUpdateNote(e.target.value)}
+                placeholder="Add notes about this image..."
+                className="w-full px-3 py-2 rounded-lg border border-neutral-200 bg-neutral-50 focus:bg-white outline-none min-h-[100px] resize-y"
+                autoFocus={isTouch}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
     </motion.div>
   );
 }
