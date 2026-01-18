@@ -71,7 +71,12 @@ export function ImageViewer({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.2 }}
-      className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center min-h-[100dvh]"
+      className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center"
+      style={{
+        minHeight: '100dvh',
+        paddingTop: 'env(safe-area-inset-top, 0px)',
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+      }}
       onClick={handleBackdropClick}
     >
       <button
@@ -85,7 +90,7 @@ export function ImageViewer({
 
       <motion.div
         ref={containerRef}
-        className="relative max-w-4xl w-full flex items-center justify-center"
+        className="relative max-w-4xl w-full flex items-center justify-center px-4"
         drag={isTouch ? "y" : false}
         dragConstraints={{ top: 0, bottom: 0 }}
         dragElastic={0.2}
@@ -119,6 +124,11 @@ export function ImageViewer({
             src={viewer.url}
             alt={viewer.name || 'flyer'}
             className="max-w-full max-h-[60vh] object-contain rounded-[10px] shadow-2xl"
+            onContextMenu={(e) => {
+              // Allow native context menu for long press on iOS
+              e.stopPropagation();
+            }}
+            style={{ touchAction: 'auto' }}
           />
 
           <button
@@ -214,22 +224,22 @@ export function ImageViewer({
                 stiffness: 400,
                 damping: 30,
               }}
-              className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full max-w-2xl p-4 rounded-lg bg-white shadow-xl"
+              className="absolute bottom-0 left-0 right-0 mx-auto w-[calc(100%-32px)] max-w-2xl p-3 rounded-lg bg-[#0037ae] shadow-xl"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-medium text-neutral-700">
+                <label className="block text-xs font-medium text-white">
                   Notes
                 </label>
                 {isTouch && (
-                  <span className="text-xs text-neutral-400">swipe down to close</span>
+                  <span className="text-[10px] text-white/70">swipe down to close</span>
                 )}
               </div>
               <textarea
                 value={viewer.note || ''}
                 onChange={(e) => onUpdateNote(e.target.value)}
                 placeholder="Add notes about this image..."
-                className="w-full px-3 py-2 rounded-lg border border-neutral-200 bg-neutral-50 focus:bg-white outline-none min-h-[100px] resize-y"
+                className="w-full px-2 py-2 rounded-md border border-white/20 bg-white/10 text-white placeholder-white/50 focus:bg-white/20 outline-none min-h-[80px] resize-y text-xs"
                 autoFocus={isTouch}
               />
             </motion.div>

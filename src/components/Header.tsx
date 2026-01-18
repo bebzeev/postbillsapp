@@ -40,19 +40,8 @@ export function Header({
         boxShadow: '0px 4px 4px 0px rgba(0,0,0,0.25)',
       }}
     >
-      {/* Build Timestamp - for verification */}
-      <div className="w-full text-center" style={{
-        fontSize: '8px',
-        color: '#ff0000',
-        backgroundColor: 'rgba(255,0,0,0.1)',
-        padding: '2px',
-        fontFamily: 'monospace'
-      }}>
-        BUILD: {new Date().toISOString()}
-      </div>
-
       <div
-        className="w-full px-[10px] pb-[20px] flex items-center gap-[15px]"
+        className="w-full px-[10px] pb-[10px] flex items-center gap-[15px]"
         style={{
           paddingTop: 'max(env(safe-area-inset-top, 0px), 10px)',
         }}
@@ -175,7 +164,7 @@ export function Header({
             title="toggle hide empty days"
             aria-label="toggle hide empty days"
           >
-            <FilterIcon />
+            <FilterIcon filled={hideEmpty} />
           </button>
 
           {/* Today button */}
