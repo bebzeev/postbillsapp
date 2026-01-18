@@ -1007,8 +1007,7 @@ export default function PostBills() {
             toggleFav(viewer.dayKey, viewer.id, !viewer.fav);
             setViewer((v) => (v ? { ...v, fav: !v.fav } : v));
           }}
-          onCopyImage={(e) => copyImageToClipboard(viewer, e)}
-          onDownloadImage={(e) => downloadImage(viewer, e)}
+          onCopyLink={(e) => copyImageLink(viewer.dayKey, viewer.id, e)}
           onToggleNotes={() => setShowNotes((prev) => !prev)}
           onUpdateNote={(note) => {
             setViewer((v) => (v ? { ...v, note } : v));

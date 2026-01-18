@@ -1,6 +1,6 @@
-import React, { useRef, useState, useCallback } from 'react';
-import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
-import { X, Trash2, Star, Copy, Download, FileText, ChevronUp } from 'lucide-react';
+import React from 'react';
+import { motion } from 'framer-motion';
+import { X, Trash2, Star, Link2, FileText } from 'lucide-react';
 import type { Viewer } from '../../types';
 
 interface ImageViewerProps {
@@ -10,16 +10,9 @@ interface ImageViewerProps {
   onClose: () => void;
   onDelete: () => void;
   onToggleFav: () => void;
-  onCopyImage: (e: React.MouseEvent) => void;
-  onDownloadImage: (e: React.MouseEvent) => void;
+  onCopyLink: (e: React.MouseEvent) => void;
   onToggleNotes: () => void;
   onUpdateNote: (note: string) => void;
-}
-
-// Inline type for drag info since PanInfo is not exported in framer-motion v12
-interface DragInfo {
-  offset: { x: number; y: number };
-  velocity: { x: number; y: number };
 }
 
 export function ImageViewer({
@@ -29,55 +22,10 @@ export function ImageViewer({
   onClose,
   onDelete,
   onToggleFav,
-  onCopyImage,
-  onDownloadImage,
+  onCopyLink,
   onToggleNotes,
   onUpdateNote,
 }: ImageViewerProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const dragY = useMotionValue(0);
-
-  // Transform for the swipe indicator opacity
-  const indicatorOpacity = useTransform(dragY, [-50, 0], [0, 1]);
-
-  // Scroll textarea into view when it gets focus (for mobile keyboard)
-  const handleTextareaFocus = useCallback(() => {
-    if (isTouch && textareaRef.current) {
-      setTimeout(() => {
-        textareaRef.current?.scrollIntoView({
-          behavior: 'smooth',
-          block: 'nearest',
-        });
-      }, 300); // Small delay for keyboard animation
-    }
-  }, [isTouch]);
-  
-  const handleDragEnd = useCallback((event: MouseEvent | TouchEvent | PointerEvent, info: DragInfo) => {
-    setIsDragging(false);
-    // If swiped up more than 40px with velocity, show notes
-    if (info.offset.y < -40 || info.velocity.y < -150) {
-      if (!showNotes) {
-        onToggleNotes();
-      }
-    }
-    // If swiped down more than 30px with velocity, hide notes (easier to swipe down)
-    if (info.offset.y > 30 || info.velocity.y > 150) {
-      if (showNotes) {
-        onToggleNotes();
-      }
-    }
-  }, [showNotes, onToggleNotes]);
-
-  // Handle clicks on the backdrop to close the modal
-  const handleBackdropClick = useCallback((e: React.MouseEvent) => {
-    // Only close if clicking directly on the backdrop, not on children
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
-  }, [onClose]);
-
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -85,7 +33,7 @@ export function ImageViewer({
       exit={{ opacity: 0 }}
       transition={{ duration: 0.2 }}
       className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-8"
-      onClick={handleBackdropClick}
+      onClick={onClose}
     >
       <button
         onClick={onClose}
@@ -96,49 +44,18 @@ export function ImageViewer({
         <X className="w-6 h-6 text-white" />
       </button>
 
-      <motion.div
-        ref={containerRef}
-        className="relative max-w-4xl w-full flex items-center justify-center px-4"
-        drag={isTouch ? "y" : false}
-        dragConstraints={{ top: 0, bottom: 0 }}
-        dragElastic={0.2}
-        onDragStart={() => setIsDragging(true)}
-        onDragEnd={handleDragEnd}
-        style={{ y: dragY }}
-        onClick={handleBackdropClick}
-      >
-        {/* Swipe indicator */}
-        {isTouch && !showNotes && (
-          <motion.div 
-            className="absolute -bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 pointer-events-none"
-            style={{ opacity: indicatorOpacity }}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 0.7 }}
-            transition={{ delay: 0.5 }}
-          >
-            <ChevronUp className="w-5 h-5 text-white animate-bounce" />
-            <span className="text-xs text-white/70">swipe for notes</span>
-          </motion.div>
-        )}
-        
+      <div className="relative max-w-4xl w-full flex flex-col items-center gap-4">
         <motion.div
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
           className="relative flex justify-center group min-h-[200px]"
           onClick={(e) => e.stopPropagation()}
-          onPointerDown={(e) => e.stopPropagation()}
-          onTouchStart={(e) => e.stopPropagation()}
         >
           <img
             src={viewer.url}
             alt={viewer.name || 'flyer'}
             className="max-w-full max-h-[60vh] object-contain rounded-[10px] shadow-2xl"
-            style={{
-              touchAction: 'auto',
-              userSelect: 'none',
-              WebkitUserSelect: 'none',
-            }}
           />
 
           <button
@@ -182,25 +99,13 @@ export function ImageViewer({
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onCopyImage(e);
+                onCopyLink(e);
               }}
               className="w-10 h-10 rounded-full bg-white shadow-lg grid place-items-center"
-              title="copy image"
-              aria-label="copy image"
+              title="copy link"
+              aria-label="copy link"
             >
-              <Copy className="w-5 h-5 text-[#0037ae]" />
-            </button>
-
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onDownloadImage(e);
-              }}
-              className="w-10 h-10 rounded-full bg-white shadow-lg grid place-items-center"
-              title="download image"
-              aria-label="download image"
-            >
-              <Download className="w-5 h-5 text-[#0037ae]" />
+              <Link2 className="w-5 h-5 text-[#0037ae]" />
             </button>
 
             <button
@@ -222,42 +127,30 @@ export function ImageViewer({
           </div>
         </motion.div>
 
-        <AnimatePresence>
-          {showNotes && (
-            <motion.div
-              key="notes-panel"
-              initial={{ y: 60, opacity: 0, scale: 0.95 }}
-              animate={{ y: 0, opacity: 1, scale: 1 }}
-              exit={{ y: 60, opacity: 0, scale: 0.95 }}
-              transition={{
-                type: 'spring',
-                stiffness: 400,
-                damping: 30,
-              }}
-              className="absolute bottom-0 left-0 right-0 mx-auto w-[calc(100%-32px)] max-w-2xl p-3 rounded-lg bg-[#0037ae] shadow-xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <label className="block text-xs font-medium text-white">
-                  Notes
-                </label>
-                {isTouch && (
-                  <span className="text-[10px] text-white/70">swipe down to close</span>
-                )}
-              </div>
-              <textarea
-                ref={textareaRef}
-                value={viewer.note || ''}
-                onChange={(e) => onUpdateNote(e.target.value)}
-                onFocus={handleTextareaFocus}
-                placeholder="Add notes about this image..."
-                className="w-full px-2 py-2 rounded-md border border-white/20 bg-black/30 text-white placeholder-white/50 focus:bg-black/40 outline-none min-h-[80px] resize-y text-xs"
-                autoFocus={isTouch}
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.div>
+        {showNotes && (
+          <motion.div
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{
+              duration: 0.25,
+              delay: 0.1,
+              ease: [0.16, 1, 0.3, 1],
+            }}
+            className="w-full max-w-2xl p-4 rounded-lg bg-white shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <label className="block text-sm font-medium text-neutral-700 mb-2">
+              Notes
+            </label>
+            <textarea
+              value={viewer.note || ''}
+              onChange={(e) => onUpdateNote(e.target.value)}
+              placeholder="Add notes about this image..."
+              className="w-full px-3 py-2 rounded-lg border border-neutral-200 bg-neutral-50 focus:bg-white outline-none min-h-[100px] resize-y"
+            />
+          </motion.div>
+        )}
+      </div>
     </motion.div>
   );
 }
