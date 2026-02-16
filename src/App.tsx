@@ -24,6 +24,9 @@ import { todayAtMidnight, fmtKey, genRange } from './utils/date';
 import { fileToDataUrlCompressed } from './utils/file';
 import { uid, isTouch as getIsTouch } from './utils/helpers';
 import { useColW } from './hooks';
+import { scheduleEventNotifications, requestNotificationPermission } from './notifications';
+import { Capacitor } from '@capacitor/core';
+import { LocalNotifications } from '@capacitor/local-notifications';
 import { Header, DayColumn, GapSeparator } from './components';
 import {
   ImageViewer,
@@ -220,6 +223,11 @@ export default function PostBills() {
     link.href = FAVICON_DATA_URL;
   }, []);
 
+  // Request notification permission on first load (iOS only)
+  useEffect(() => {
+    requestNotificationPermission().catch(() => {});
+  }, []);
+
   useEffect(() => {
     if (slug) {
       try {
@@ -351,6 +359,38 @@ export default function PostBills() {
     );
     return () => unsub();
   }, [slug, days]);
+
+  // Schedule local notifications for favorited events (iOS only)
+  useEffect(() => {
+    if (!slug || !dataLoaded) return;
+
+    const timer = setTimeout(() => {
+      scheduleEventNotifications(board, slug).catch((err) => {
+        console.warn('Failed to schedule notifications:', err);
+      });
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [board, slug, dataLoaded]);
+
+  // Handle notification tap — scroll to the event's day (iOS only)
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    const listener = LocalNotifications.addListener(
+      'localNotificationActionPerformed',
+      (action) => {
+        const extra = action.notification.extra;
+        if (extra?.dayKey) {
+          setTimeout(() => scrollTo(extra.dayKey, true), 500);
+        }
+      },
+    );
+
+    return () => {
+      listener.then((l) => l.remove());
+    };
+  }, []);
 
   // Position scroll to today after columns are rendered and images have loaded
   useEffect(() => {

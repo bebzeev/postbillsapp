@@ -12,6 +12,9 @@
     },
     "SplashScreen": {
       "launchShowDuration": 0
+    },
+    "LocalNotifications": {
+      "iconColor": "#0037ae"
     }
   },
   "ios": {
