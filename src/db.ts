@@ -4,9 +4,10 @@
  */
 
 const DB_NAME = 'postbills-db';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const BOARDS_STORE = 'boards';
 const QUEUE_STORE = 'syncQueue';
+const IMAGE_CACHE_STORE = 'imageCache';
 
 export interface ImageItem {
   id: string;
@@ -66,6 +67,11 @@ function openDB(): Promise<IDBDatabase> {
         const queueStore = db.createObjectStore(QUEUE_STORE, { keyPath: 'id' });
         queueStore.createIndex('timestamp', 'timestamp', { unique: false });
         queueStore.createIndex('slug', 'slug', { unique: false });
+      }
+
+      // Create image cache store (key: imageId, value: base64 dataUrl)
+      if (!db.objectStoreNames.contains(IMAGE_CACHE_STORE)) {
+        db.createObjectStore(IMAGE_CACHE_STORE, { keyPath: 'id' });
       }
     };
   });
@@ -244,6 +250,111 @@ export async function getQueueCount(slug: string): Promise<number> {
   } catch (error) {
     console.warn('Error getting queue count:', error);
     return 0;
+  }
+}
+
+export interface CachedImage {
+  id: string;
+  dataUrl: string;
+  timestamp: number;
+}
+
+/**
+ * Caches an image as base64 data URL
+ */
+export async function cacheImage(id: string, dataUrl: string): Promise<void> {
+  try {
+    const db = await openDB();
+    const transaction = db.transaction([IMAGE_CACHE_STORE], 'readwrite');
+    const store = transaction.objectStore(IMAGE_CACHE_STORE);
+
+    const data: CachedImage = {
+      id,
+      dataUrl,
+      timestamp: Date.now(),
+    };
+
+    return new Promise((resolve, reject) => {
+      const request = store.put(data);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  } catch (error) {
+    console.warn('Error caching image:', error);
+  }
+}
+
+/**
+ * Retrieves a cached image by ID
+ */
+export async function getCachedImage(id: string): Promise<string | null> {
+  try {
+    const db = await openDB();
+    const transaction = db.transaction([IMAGE_CACHE_STORE], 'readonly');
+    const store = transaction.objectStore(IMAGE_CACHE_STORE);
+
+    return new Promise((resolve, reject) => {
+      const request = store.get(id);
+      request.onsuccess = () => {
+        const result = request.result as CachedImage | undefined;
+        resolve(result ? result.dataUrl : null);
+      };
+      request.onerror = () => reject(request.error);
+    });
+  } catch (error) {
+    console.warn('Error getting cached image:', error);
+    return null;
+  }
+}
+
+/**
+ * Retrieves multiple cached images by IDs
+ */
+export async function getCachedImages(ids: string[]): Promise<Map<string, string>> {
+  const cache = new Map<string, string>();
+  try {
+    const db = await openDB();
+    const transaction = db.transaction([IMAGE_CACHE_STORE], 'readonly');
+    const store = transaction.objectStore(IMAGE_CACHE_STORE);
+
+    await Promise.all(
+      ids.map(
+        (id) =>
+          new Promise<void>((resolve) => {
+            const request = store.get(id);
+            request.onsuccess = () => {
+              const result = request.result as CachedImage | undefined;
+              if (result) {
+                cache.set(id, result.dataUrl);
+              }
+              resolve();
+            };
+            request.onerror = () => resolve();
+          })
+      )
+    );
+  } catch (error) {
+    console.warn('Error getting cached images:', error);
+  }
+  return cache;
+}
+
+/**
+ * Removes a cached image
+ */
+export async function removeCachedImage(id: string): Promise<void> {
+  try {
+    const db = await openDB();
+    const transaction = db.transaction([IMAGE_CACHE_STORE], 'readwrite');
+    const store = transaction.objectStore(IMAGE_CACHE_STORE);
+
+    return new Promise((resolve, reject) => {
+      const request = store.delete(id);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  } catch (error) {
+    console.warn('Error removing cached image:', error);
   }
 }
 

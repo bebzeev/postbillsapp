@@ -2,7 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
-html, body, #root { height: 100%; }
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background-color: #0037ae;
+}
 
 /* Hide scrollbars */
 .scrollbar-hide {

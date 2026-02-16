@@ -16,7 +16,7 @@ import {
   getDownloadURL,
   deleteObject,
 } from 'firebase/storage';
-import { saveBoard, getBoard, queueOperation } from './db';
+import { saveBoard, getBoard, queueOperation, cacheImage, getCachedImages } from './db';
 import { processSyncQueue, onSyncStatusChange, type SyncStatus } from './syncQueue';
 import { db, storage, firebaseReady } from './constants/firebase';
 import { DESIGN, FAVICON_DATA_URL, DAY_MS } from './constants/design';
@@ -49,7 +49,7 @@ export default function PostBills() {
 
   const initialSlug = useMemo(() => {
     const p = window.location.pathname.replace(/^\/+|\/+$/g, '');
-    return p && p !== 'index.html' ? p : '';
+    return p && p !== 'index.html' ? p.toLowerCase() : '';
   }, []);
 
   const hasVisitedBefore = useMemo(() => {
@@ -111,7 +111,7 @@ export default function PostBills() {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
   const [syncMessage, setSyncMessage] = useState<string>('');
   const [copied, setCopied] = useState(false);
-  const [expandedDay, setExpandedDay] = useState<string | null>(null);
+  const [expandedDay, setExpandedDay] = useState<{ dayKey: string; level: number } | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastScrollLeft = useRef<number>(0);
@@ -121,6 +121,7 @@ export default function PostBills() {
   const [headerH, setHeaderH] = useState(96);
   const anchorRef = useRef<string | null>(null);
   const hasScrolledToToday = useRef(false);
+  const [isPositioned, setIsPositioned] = useState(false);
 
   const isTouch = useMemo(() => getIsTouch(), []);
 
@@ -158,8 +159,29 @@ export default function PostBills() {
   useEffect(() => {
     if (!slug) return;
 
-    getBoard(slug).then((cachedBoard) => {
+    getBoard(slug).then(async (cachedBoard) => {
       if (cachedBoard) {
+        // Collect all image IDs and apply cached base64 images
+        const allIds: string[] = [];
+        for (const dayKey in cachedBoard) {
+          for (const item of cachedBoard[dayKey]) {
+            allIds.push(item.id);
+          }
+        }
+
+        // Get cached base64 images
+        const cachedImages = await getCachedImages(allIds);
+
+        // Apply cached images to board
+        for (const dayKey in cachedBoard) {
+          for (const item of cachedBoard[dayKey]) {
+            const cached = cachedImages.get(item.id);
+            if (cached) {
+              item.dataUrl = cached;
+            }
+          }
+        }
+
         setBoard((prev) => {
           const merged = { ...prev };
           for (const dayKey in cachedBoard) {
@@ -258,8 +280,10 @@ export default function PostBills() {
 
     const unsub = onSnapshot(
       collection(boardRef, 'items'),
-      (snap) => {
+      async (snap) => {
         const by: Board = {};
+        const allItems: { id: string; imageURL: string }[] = [];
+
         snap.forEach((ds) => {
           const it = ds.data();
           (by[it.dayKey] || (by[it.dayKey] = [])).push({
@@ -270,33 +294,85 @@ export default function PostBills() {
             note: it.note || '',
             _order: it.order,
           });
+          if (it.imageURL) {
+            allItems.push({ id: it.id, imageURL: it.imageURL });
+          }
         });
         for (const k in by)
           by[k].sort((a, b) => (a._order ?? 0) - (b._order ?? 0));
+
+        // Get cached base64 images
+        const imageIds = allItems.map((item) => item.id);
+        const cachedImages = await getCachedImages(imageIds);
+
+        // Apply cached images to board data
+        for (const dayKey in by) {
+          for (const item of by[dayKey]) {
+            const cached = cachedImages.get(item.id);
+            if (cached) {
+              item.dataUrl = cached;
+            }
+          }
+        }
 
         const newBoard: Board = {};
         for (const d of days) newBoard[fmtKey(d)] = by[fmtKey(d)] || [];
 
         setBoard(newBoard);
 
+        // Save to IndexedDB for offline access (with cached base64 URLs)
         saveBoard(slug, newBoard).catch((err) => {
           console.warn('Failed to save board to IndexedDB:', err);
         });
 
         setDataLoaded(true);
+
+        // Background: fetch and cache images that aren't cached yet
+        if (navigator.onLine) {
+          const uncachedItems = allItems.filter((item) => !cachedImages.has(item.id));
+          for (const item of uncachedItems) {
+            fetch(item.imageURL)
+              .then((res) => res.blob())
+              .then((blob) => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                  const dataUrl = reader.result as string;
+                  if (dataUrl) {
+                    cacheImage(item.id, dataUrl).catch(() => {});
+                  }
+                };
+                reader.readAsDataURL(blob);
+              })
+              .catch(() => {});
+          }
+        }
       },
       (err) => console.warn('firestore snapshot error', err)
     );
     return () => unsub();
   }, [slug, days]);
 
-  // Scroll to today after data has loaded
+  // Position scroll to today after columns are rendered and images have loaded
   useEffect(() => {
     if (dataLoaded && !hasScrolledToToday.current) {
       hasScrolledToToday.current = true;
-      setTimeout(() => {
-        scrollTo(todayKey, true);
-      }, 100);
+
+      // Wait for images to load from cache (affects column widths)
+      // Then use the same scrollIntoView as the Today button
+      const scrollToToday = () => {
+        const todayEl = columnRefs.current[todayKey];
+        if (todayEl) {
+          todayEl.scrollIntoView({
+            behavior: 'instant',
+            inline: 'center',
+            block: 'nearest',
+          });
+          setIsPositioned(true);
+        }
+      };
+
+      // Give images time to load from IndexedDB cache before scrolling
+      setTimeout(scrollToToday, 300);
     }
   }, [dataLoaded, todayKey]);
 
@@ -507,6 +583,11 @@ export default function PostBills() {
       fav: false,
       note: '',
     }));
+
+    // Cache images for offline access
+    for (const entry of entries) {
+      cacheImage(entry.id, entry.dataUrl).catch(() => {});
+    }
 
     const cur = board[dayKey] || [];
     const from =
@@ -825,11 +906,11 @@ export default function PostBills() {
     }
   }
 
-  function toggleExpandDay(dayKey: string) {
-    if (expandedDay === dayKey) {
+  function setExpandLevel(dayKey: string, level: number) {
+    if (level === 0) {
       setExpandedDay(null);
     } else {
-      setExpandedDay(dayKey);
+      setExpandedDay({ dayKey, level });
       // Scroll the expanded column into view
       setTimeout(() => scrollTo(dayKey, true), 100);
     }
@@ -837,13 +918,10 @@ export default function PostBills() {
 
   return (
     <div
-      className="w-full overflow-hidden flex flex-col"
+      className="w-full fixed inset-0 overflow-hidden flex flex-col"
       style={{
         backgroundColor: DESIGN.colors.mainBlue,
         fontFamily: DESIGN.fonts.body,
-        height: '100dvh', // Exact viewport height for mobile
-        position: 'fixed',
-        inset: 0,
       }}
     >
       {/* Header */}
@@ -886,21 +964,19 @@ export default function PostBills() {
             touchAction: isDragging ? 'none' : 'pan-x',
             overscrollBehaviorX: 'contain',
             overscrollBehaviorY: 'none',
+            opacity: isPositioned ? 1 : 0,
           }}
           onTouchMove={(e) => {
             if (isDragging) e.preventDefault();
           }}
-          className="overflow-x-auto overflow-y-hidden scrollbar-hide pt-2"
+          className="overflow-x-auto overflow-y-hidden scrollbar-hide pt-2 pb-2"
         >
           <div
-            className="h-full flex items-start gap-[8px] pl-0"
-            style={{
-              paddingRight: 'max(env(safe-area-inset-right, 0px), 10px)',
-            }}
+            className="h-full flex items-start gap-[8px] px-2"
           >
             {/* Load past days button */}
             {pastShown < 365 && (
-              <div className="flex items-center pl-4">
+              <div className="h-full flex items-center pl-4">
                 <button
                   onClick={() => setPastShown((v) => Math.min(365, v + 30))}
                   className="p-3 rounded-full bg-white text-[#0037ae] shadow-lg hover:bg-white/90"
@@ -942,8 +1018,8 @@ export default function PostBills() {
                     fileOver={fileOver}
                     externalHover={externalHover}
                     showFavOnly={showFavOnly}
-                    isExpanded={expandedDay === key}
-                    onToggleExpand={toggleExpandDay}
+                    expandLevel={expandedDay?.dayKey === key ? expandedDay.level : 0}
+                    onSetExpandLevel={setExpandLevel}
                     onExtOver={onExtOver}
                     onExtLeave={onExtLeave}
                     onExtDrop={onExtDrop}
@@ -975,7 +1051,7 @@ export default function PostBills() {
               );
             })}
             {futureShown < 365 && (
-              <div className="flex items-center pr-4">
+              <div className="h-full flex items-center pr-4">
                 <button
                   onClick={() => setFutureShown((v) => Math.min(365, v + 60))}
                   className="p-3 rounded-full bg-white text-[#0037ae] shadow-lg hover:bg-white/90"

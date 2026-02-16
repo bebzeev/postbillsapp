@@ -52,7 +52,7 @@ export function SlugPrompt({
           autoFocus={!isTouch}
           value={slugDraft}
           onChange={(e) =>
-            onSlugChange(e.target.value.replace(/[^a-zA-Z0-9-_]/g, '-'))
+            onSlugChange(e.target.value.replace(/[^a-zA-Z0-9-_]/g, '-').toLowerCase())
           }
           onKeyDown={(e) => {
             if (e.key === 'Enter' && slugDraft) {
