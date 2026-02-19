@@ -35,7 +35,8 @@ export function Help({ showHelp, onToggleHelp }: HelpProps) {
       {showHelp && (
         <>
           <div
-            className="fixed inset-0 z-40"
+            className="fixed top-0 left-0 w-full z-40"
+            style={{ height: 'var(--app-height, 100dvh)' }}
             onClick={() => onToggleHelp()}
           />
           <div

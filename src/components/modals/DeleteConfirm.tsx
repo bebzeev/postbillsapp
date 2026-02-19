@@ -5,7 +5,7 @@ interface DeleteConfirmProps {
 
 export function DeleteConfirm({ onCancel, onConfirm }: DeleteConfirmProps) {
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm grid place-items-center p-4">
+    <div className="fixed top-0 left-0 w-full z-50 bg-black/40 backdrop-blur-sm grid place-items-center p-4" style={{ height: 'var(--app-height, 100dvh)' }}>
       <div className="w-full max-w-sm rounded-2xl bg-white shadow-xl p-5 space-y-4">
         <h3 className="text-lg font-semibold text-neutral-900">
           Delete Image?

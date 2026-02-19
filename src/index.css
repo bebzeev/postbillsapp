@@ -7,15 +7,6 @@ html, body, #root {
   padding: 0;
   overflow: hidden;
   background-color: #0037ae;
-  /* Fill the full viewport including safe areas on iOS PWA */
-  height: 100%;
-  min-height: 100dvh;
-  min-height: -webkit-fill-available;
-}
-
-html {
-  /* Ensure the html element covers safe areas */
-  height: -webkit-fill-available;
 }
 
 /* Hide scrollbars */

@@ -26,7 +26,8 @@ export function SlugPrompt({
 
   return (
     <div
-      className={`fixed inset-0 z-50 bg-black/40 backdrop-blur-sm grid place-items-center p-4 ${canDismiss ? 'cursor-pointer' : ''}`}
+      className={`fixed top-0 left-0 w-full z-50 bg-black/40 backdrop-blur-sm grid place-items-center p-4 ${canDismiss ? 'cursor-pointer' : ''}`}
+      style={{ height: 'var(--app-height, 100dvh)' }}
       role="dialog"
       aria-modal
       onClick={handleBackdropClick}

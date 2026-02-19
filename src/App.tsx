@@ -128,6 +128,25 @@ export default function PostBills() {
 
   const isTouch = useMemo(() => getIsTouch(), []);
 
+  // Sync viewport height CSS variable for iOS PWA standalone mode
+  // position:fixed + inset:0 doesn't always reach the screen bottom in iOS
+  // standalone PWAs, so we explicitly set height using window.innerHeight
+  useEffect(() => {
+    const setVH = () => {
+      document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`);
+    };
+    setVH();
+    window.addEventListener('resize', setVH);
+    // Also listen for orientationchange (some iOS versions need this)
+    window.addEventListener('orientationchange', () => {
+      // Delay slightly to let iOS finish rotation layout
+      setTimeout(setVH, 100);
+    });
+    return () => {
+      window.removeEventListener('resize', setVH);
+    };
+  }, []);
+
   // Network status detection
   useEffect(() => {
     const handleOnline = () => {
@@ -1017,11 +1036,12 @@ export default function PostBills() {
 
   return (
     <div
-      className="w-full fixed inset-0 overflow-hidden flex flex-col"
+      className="w-full fixed top-0 left-0 overflow-hidden flex flex-col"
       style={{
         backgroundColor: DESIGN.colors.mainBlue,
         fontFamily: DESIGN.fonts.body,
-        paddingBottom: 'env(safe-area-inset-bottom)',
+        width: '100%',
+        height: 'var(--app-height, 100dvh)',
       }}
     >
       {/* Header */}
