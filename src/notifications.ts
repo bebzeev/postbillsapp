@@ -7,10 +7,14 @@
  *   - 5 days before at 10:00 AM local time
  *   - Day-of at 9:00 AM local time (or immediately if the event is today
  *     and 9 AM has already passed)
+ *
+ * Images are downloaded to a local temp file because iOS notification
+ * attachments require local file:// URIs, not remote HTTPS URLs.
  */
 
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
+import { Filesystem, Directory } from '@capacitor/filesystem';
 import type { Board } from './types';
 
 /** Max scheduled notifications iOS allows */
@@ -50,13 +54,40 @@ function todayKey(): string {
 }
 
 /**
- * Returns a usable attachment URL (HTTPS only — data URIs don't work
- * for iOS notification attachments).
+ * Download a remote image to a local temp file and return the local URI.
+ * Returns null if anything fails (network, write, etc).
  */
-function attachmentUrl(dataUrl: string | undefined): string | null {
-  if (!dataUrl) return null;
-  if (dataUrl.startsWith('https://')) return dataUrl;
-  return null;
+async function downloadToLocal(url: string, filename: string): Promise<string | null> {
+  try {
+    const response = await fetch(url);
+    const blob = await response.blob();
+
+    // Convert blob to base64
+    const base64 = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        // Strip the data:...;base64, prefix
+        const base64Data = result.split(',')[1];
+        resolve(base64Data);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+
+    // Write to Cache directory
+    const result = await Filesystem.writeFile({
+      path: `notif_images/${filename}`,
+      data: base64,
+      directory: Directory.Cache,
+      recursive: true,
+    });
+
+    return result.uri;
+  } catch (err) {
+    console.warn(`[notifications] failed to download image for ${filename}:`, err);
+    return null;
+  }
 }
 
 /**
@@ -95,14 +126,18 @@ export async function scheduleEventNotifications(
 
   const now = new Date();
   const today = todayKey();
-  const notifications: {
+
+  // Collect items that need notifications
+  interface PendingNotif {
     id: number;
     title: string;
     body: string;
     schedule: { at: Date };
     extra: Record<string, string>;
-    attachments?: { id: string; url: string }[];
-  }[] = [];
+    imageURL?: string;
+    itemId: string;
+  }
+  const pendingNotifs: PendingNotif[] = [];
 
   for (const dayKey of Object.keys(board)) {
     const items = board[dayKey];
@@ -113,10 +148,7 @@ export async function scheduleEventNotifications(
       if (isNaN(eventDate.getTime())) continue;
 
       const date = shortDate(eventDate);
-      const imgUrl = attachmentUrl(item.imageURL);
-      const attach = imgUrl
-        ? [{ id: `img_${item.id}`, url: imgUrl }]
-        : undefined;
+      const imgURL = item.imageURL && item.imageURL.startsWith('https://') ? item.imageURL : undefined;
 
       // 5 days before at 10:00 AM
       const advanceDate = new Date(eventDate);
@@ -124,55 +156,87 @@ export async function scheduleEventNotifications(
       advanceDate.setHours(10, 0, 0, 0);
 
       if (advanceDate > now) {
-        notifications.push({
+        pendingNotifs.push({
           id: notifId(item.id, 'advance'),
           title: `Reminder! Your starred event is coming up on ${date}`,
           body: '',
           schedule: { at: advanceDate },
           extra: { slug, dayKey, itemId: item.id },
-          attachments: attach,
+          imageURL: imgURL,
+          itemId: item.id,
         });
       }
 
       // Day-of notification
       if (dayKey === today) {
-        // Event is TODAY — fire immediately (5 seconds from now so iOS accepts it)
-        notifications.push({
+        pendingNotifs.push({
           id: notifId(item.id, 'day'),
           title: `Reminder! Your starred event is today, ${date}`,
           body: '',
           schedule: { at: new Date(Date.now() + 5_000) },
           extra: { slug, dayKey, itemId: item.id },
-          attachments: attach,
+          imageURL: imgURL,
+          itemId: item.id,
         });
       } else {
-        // Future day — schedule for 9:00 AM that day
         const dayOf = new Date(eventDate);
         dayOf.setHours(9, 0, 0, 0);
 
         if (dayOf > now) {
-          notifications.push({
+          pendingNotifs.push({
             id: notifId(item.id, 'day'),
             title: `Reminder! Your starred event is today, ${date}`,
             body: '',
             schedule: { at: dayOf },
             extra: { slug, dayKey, itemId: item.id },
-            attachments: attach,
+            imageURL: imgURL,
+            itemId: item.id,
           });
         }
       }
     }
   }
 
-  if (notifications.length === 0) return;
+  if (pendingNotifs.length === 0) return;
 
   // Sort soonest-first and cap at iOS limit
-  notifications.sort(
+  pendingNotifs.sort(
     (a, b) => a.schedule.at.getTime() - b.schedule.at.getTime(),
   );
-  const capped = notifications.slice(0, IOS_NOTIFICATION_LIMIT);
+  const capped = pendingNotifs.slice(0, IOS_NOTIFICATION_LIMIT);
 
-  console.log(`[notifications] scheduling ${capped.length} notifications`,
-    capped.map(n => ({ id: n.id, title: n.title, at: n.schedule.at.toISOString(), hasAttachment: !!n.attachments })));
-  await LocalNotifications.schedule({ notifications: capped });
+  // Download images to local files for notification attachments
+  const notifications: {
+    id: number;
+    title: string;
+    body: string;
+    schedule: { at: Date };
+    extra: Record<string, string>;
+    attachments?: { id: string; url: string }[];
+  }[] = [];
+
+  for (const n of capped) {
+    let attachments: { id: string; url: string }[] | undefined;
+
+    if (n.imageURL) {
+      const localUri = await downloadToLocal(n.imageURL, `${n.itemId}.jpg`);
+      if (localUri) {
+        attachments = [{ id: `img_${n.itemId}`, url: localUri }];
+      }
+    }
+
+    notifications.push({
+      id: n.id,
+      title: n.title,
+      body: n.body,
+      schedule: n.schedule,
+      extra: n.extra,
+      attachments,
+    });
+  }
+
+  console.log(`[notifications] scheduling ${notifications.length} notifications`,
+    notifications.map(n => ({ id: n.id, title: n.title, at: n.schedule.at.toISOString(), hasAttachment: !!n.attachments })));
+
+  await LocalNotifications.schedule({ notifications });
 }
