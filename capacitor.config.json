@@ -15,6 +15,9 @@
     },
     "LocalNotifications": {
       "iconColor": "#0037ae"
+    },
+    "CapacitorHttp": {
+      "enabled": true
     }
   },
   "ios": {
