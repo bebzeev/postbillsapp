@@ -16,7 +16,7 @@ import {
   getDownloadURL,
   deleteObject,
 } from 'firebase/storage';
-import { saveBoard, getBoard, queueOperation } from './db';
+import { saveBoard, getBoard, queueOperation, cacheImage, getCachedImages } from './db';
 import { processSyncQueue, onSyncStatusChange, type SyncStatus } from './syncQueue';
 import { db, storage, firebaseReady } from './constants/firebase';
 import { DESIGN, FAVICON_DATA_URL, DAY_MS } from './constants/design';
@@ -24,6 +24,9 @@ import { todayAtMidnight, fmtKey, genRange } from './utils/date';
 import { fileToDataUrlCompressed } from './utils/file';
 import { uid, isTouch as getIsTouch } from './utils/helpers';
 import { useColW } from './hooks';
+import { scheduleEventNotifications, requestNotificationPermission } from './notifications';
+import { Capacitor, CapacitorHttp } from '@capacitor/core';
+import { LocalNotifications } from '@capacitor/local-notifications';
 import { Header, DayColumn, GapSeparator } from './components';
 import {
   ImageViewer,
@@ -49,7 +52,7 @@ export default function PostBills() {
 
   const initialSlug = useMemo(() => {
     const p = window.location.pathname.replace(/^\/+|\/+$/g, '');
-    return p && p !== 'index.html' ? p : '';
+    return p && p !== 'index.html' ? p.toLowerCase() : '';
   }, []);
 
   const hasVisitedBefore = useMemo(() => {
@@ -111,7 +114,7 @@ export default function PostBills() {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
   const [syncMessage, setSyncMessage] = useState<string>('');
   const [copied, setCopied] = useState(false);
-  const [expandedDay, setExpandedDay] = useState<string | null>(null);
+  const [expandedDay, setExpandedDay] = useState<{ dayKey: string; level: number } | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastScrollLeft = useRef<number>(0);
@@ -121,6 +124,7 @@ export default function PostBills() {
   const [headerH, setHeaderH] = useState(96);
   const anchorRef = useRef<string | null>(null);
   const hasScrolledToToday = useRef(false);
+  const [isPositioned, setIsPositioned] = useState(false);
 
   const isTouch = useMemo(() => getIsTouch(), []);
 
@@ -158,8 +162,29 @@ export default function PostBills() {
   useEffect(() => {
     if (!slug) return;
 
-    getBoard(slug).then((cachedBoard) => {
+    getBoard(slug).then(async (cachedBoard) => {
       if (cachedBoard) {
+        // Collect all image IDs and apply cached base64 images
+        const allIds: string[] = [];
+        for (const dayKey in cachedBoard) {
+          for (const item of cachedBoard[dayKey]) {
+            allIds.push(item.id);
+          }
+        }
+
+        // Get cached base64 images
+        const cachedImages = await getCachedImages(allIds);
+
+        // Apply cached images to board
+        for (const dayKey in cachedBoard) {
+          for (const item of cachedBoard[dayKey]) {
+            const cached = cachedImages.get(item.id);
+            if (cached) {
+              item.dataUrl = cached;
+            }
+          }
+        }
+
         setBoard((prev) => {
           const merged = { ...prev };
           for (const dayKey in cachedBoard) {
@@ -196,6 +221,11 @@ export default function PostBills() {
     }
     link.type = 'image/svg+xml';
     link.href = FAVICON_DATA_URL;
+  }, []);
+
+  // Request notification permission on first load (iOS only)
+  useEffect(() => {
+    requestNotificationPermission().catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -258,45 +288,190 @@ export default function PostBills() {
 
     const unsub = onSnapshot(
       collection(boardRef, 'items'),
-      (snap) => {
+      async (snap) => {
         const by: Board = {};
+        const allItems: { id: string; imageURL: string }[] = [];
+
         snap.forEach((ds) => {
           const it = ds.data();
           (by[it.dayKey] || (by[it.dayKey] = [])).push({
             id: it.id,
             name: it.name,
             dataUrl: it.imageURL,
+            imageURL: it.imageURL || '',
             fav: !!it.fav,
             note: it.note || '',
             _order: it.order,
           });
+          if (it.imageURL) {
+            allItems.push({ id: it.id, imageURL: it.imageURL });
+          }
         });
+
+        // If Firestore returns empty but we already have cached data, skip
+        // (this happens offline when Firestore has no persistence enabled)
+        if (allItems.length === 0 && dataLoaded) {
+          console.log('[firestore] empty snapshot ignored — using cached board data');
+          return;
+        }
+
         for (const k in by)
           by[k].sort((a, b) => (a._order ?? 0) - (b._order ?? 0));
 
+        // Get cached base64 images
+        const imageIds = allItems.map((item) => item.id);
+        const cachedImages = await getCachedImages(imageIds);
+
+        // Apply cached images to board data
+        for (const dayKey in by) {
+          for (const item of by[dayKey]) {
+            const cached = cachedImages.get(item.id);
+            if (cached) {
+              item.dataUrl = cached;
+            }
+          }
+        }
+
         const newBoard: Board = {};
+        const firestoreIds = new Set(allItems.map((item) => item.id));
         for (const d of days) newBoard[fmtKey(d)] = by[fmtKey(d)] || [];
 
-        setBoard(newBoard);
-
-        saveBoard(slug, newBoard).catch((err) => {
-          console.warn('Failed to save board to IndexedDB:', err);
+        // Preserve locally-added items that Firestore doesn't know about yet.
+        // These are items added offline that haven't been synced.
+        // They have dataUrl starting with "data:" (base64) and no imageURL.
+        setBoard((prevBoard) => {
+          for (const dk in prevBoard) {
+            for (const item of prevBoard[dk]) {
+              if (!firestoreIds.has(item.id) && item.dataUrl?.startsWith('data:')) {
+                if (!newBoard[dk]) newBoard[dk] = [];
+                newBoard[dk].push(item);
+              }
+            }
+          }
+          return newBoard;
         });
-
         setDataLoaded(true);
+
+        // Background: fetch and cache images that aren't cached yet
+        if (navigator.onLine) {
+          const uncachedItems = allItems.filter((item) => !cachedImages.has(item.id));
+          if (uncachedItems.length > 0) {
+            console.log(`[image-cache] caching ${uncachedItems.length} uncached images`);
+          }
+          for (const item of uncachedItems) {
+            try {
+              let dataUrl: string;
+              if (Capacitor.isNativePlatform()) {
+                // Use native HTTP to bypass WKWebView CORS restrictions
+                const resp = await CapacitorHttp.get({
+                  url: item.imageURL,
+                  responseType: 'blob',
+                });
+                // CapacitorHttp returns blob responses as base64 string
+                const contentType = resp.headers?.['Content-Type'] || resp.headers?.['content-type'] || 'image/jpeg';
+                dataUrl = `data:${contentType};base64,${resp.data}`;
+              } else {
+                // Web: use regular fetch
+                const res = await fetch(item.imageURL);
+                const blob = await res.blob();
+                dataUrl = await new Promise<string>((resolve) => {
+                  const reader = new FileReader();
+                  reader.onloadend = () => resolve(reader.result as string);
+                  reader.readAsDataURL(blob);
+                });
+              }
+              if (dataUrl) {
+                await cacheImage(item.id, dataUrl);
+                // Update in-memory board state so the image shows immediately
+                setBoard((prev) => {
+                  const updated = { ...prev };
+                  for (const dk in updated) {
+                    updated[dk] = updated[dk].map((it) =>
+                      it.id === item.id ? { ...it, dataUrl } : it
+                    );
+                  }
+                  return updated;
+                });
+                console.log(`[image-cache] cached ${item.id}`);
+              }
+            } catch (err) {
+              console.warn(`[image-cache] failed to cache ${item.id}:`, err);
+            }
+          }
+        }
       },
       (err) => console.warn('firestore snapshot error', err)
     );
     return () => unsub();
   }, [slug, days]);
 
-  // Scroll to today after data has loaded
+  // Persist board to IndexedDB on every change (debounced)
+  // This ensures offline adds, deletes, reorders, etc. survive force-quit
+  useEffect(() => {
+    if (!slug || !dataLoaded) return;
+
+    const timer = setTimeout(() => {
+      saveBoard(slug, board).catch((err) => {
+        console.warn('Failed to save board to IndexedDB:', err);
+      });
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [board, slug, dataLoaded]);
+
+  // Schedule local notifications for favorited events (iOS only)
+  useEffect(() => {
+    if (!slug || !dataLoaded) return;
+
+    const timer = setTimeout(() => {
+      scheduleEventNotifications(board, slug).catch((err) => {
+        console.warn('Failed to schedule notifications:', err);
+      });
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [board, slug, dataLoaded]);
+
+  // Handle notification tap — scroll to the event's day (iOS only)
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    const listener = LocalNotifications.addListener(
+      'localNotificationActionPerformed',
+      (action) => {
+        const extra = action.notification.extra;
+        if (extra?.dayKey) {
+          setTimeout(() => scrollTo(extra.dayKey, true), 500);
+        }
+      },
+    );
+
+    return () => {
+      listener.then((l) => l.remove());
+    };
+  }, []);
+
+  // Position scroll to today after columns are rendered and images have loaded
   useEffect(() => {
     if (dataLoaded && !hasScrolledToToday.current) {
       hasScrolledToToday.current = true;
-      setTimeout(() => {
-        scrollTo(todayKey, true);
-      }, 100);
+
+      // Wait for images to load from cache (affects column widths)
+      // Then use the same scrollIntoView as the Today button
+      const scrollToToday = () => {
+        const todayEl = columnRefs.current[todayKey];
+        if (todayEl) {
+          todayEl.scrollIntoView({
+            behavior: 'instant',
+            inline: 'center',
+            block: 'nearest',
+          });
+          setIsPositioned(true);
+        }
+      };
+
+      // Give images time to load from IndexedDB cache before scrolling
+      setTimeout(scrollToToday, 300);
     }
   }, [dataLoaded, todayKey]);
 
@@ -507,6 +682,11 @@ export default function PostBills() {
       fav: false,
       note: '',
     }));
+
+    // Cache images for offline access
+    for (const entry of entries) {
+      cacheImage(entry.id, entry.dataUrl).catch(() => {});
+    }
 
     const cur = board[dayKey] || [];
     const from =
@@ -825,11 +1005,11 @@ export default function PostBills() {
     }
   }
 
-  function toggleExpandDay(dayKey: string) {
-    if (expandedDay === dayKey) {
+  function setExpandLevel(dayKey: string, level: number) {
+    if (level === 0) {
       setExpandedDay(null);
     } else {
-      setExpandedDay(dayKey);
+      setExpandedDay({ dayKey, level });
       // Scroll the expanded column into view
       setTimeout(() => scrollTo(dayKey, true), 100);
     }
@@ -837,13 +1017,10 @@ export default function PostBills() {
 
   return (
     <div
-      className="w-full overflow-hidden flex flex-col"
+      className="w-full fixed inset-0 overflow-hidden flex flex-col"
       style={{
         backgroundColor: DESIGN.colors.mainBlue,
         fontFamily: DESIGN.fonts.body,
-        height: '100dvh', // Exact viewport height for mobile
-        position: 'fixed',
-        inset: 0,
       }}
     >
       {/* Header */}
@@ -886,21 +1063,19 @@ export default function PostBills() {
             touchAction: isDragging ? 'none' : 'pan-x',
             overscrollBehaviorX: 'contain',
             overscrollBehaviorY: 'none',
+            opacity: isPositioned ? 1 : 0,
           }}
           onTouchMove={(e) => {
             if (isDragging) e.preventDefault();
           }}
-          className="overflow-x-auto overflow-y-hidden scrollbar-hide pt-2"
+          className="overflow-x-auto overflow-y-hidden scrollbar-hide pt-2 pb-2"
         >
           <div
-            className="h-full flex items-start gap-[8px] pl-0"
-            style={{
-              paddingRight: 'max(env(safe-area-inset-right, 0px), 10px)',
-            }}
+            className="h-full flex items-start gap-[8px] px-2"
           >
             {/* Load past days button */}
             {pastShown < 365 && (
-              <div className="flex items-center pl-4">
+              <div className="h-full flex items-center pl-4">
                 <button
                   onClick={() => setPastShown((v) => Math.min(365, v + 30))}
                   className="p-3 rounded-full bg-white text-[#0037ae] shadow-lg hover:bg-white/90"
@@ -942,8 +1117,8 @@ export default function PostBills() {
                     fileOver={fileOver}
                     externalHover={externalHover}
                     showFavOnly={showFavOnly}
-                    isExpanded={expandedDay === key}
-                    onToggleExpand={toggleExpandDay}
+                    expandLevel={expandedDay?.dayKey === key ? expandedDay.level : 0}
+                    onSetExpandLevel={setExpandLevel}
                     onExtOver={onExtOver}
                     onExtLeave={onExtLeave}
                     onExtDrop={onExtDrop}
@@ -975,7 +1150,7 @@ export default function PostBills() {
               );
             })}
             {futureShown < 365 && (
-              <div className="flex items-center pr-4">
+              <div className="h-full flex items-center pr-4">
                 <button
                   onClick={() => setFutureShown((v) => Math.min(365, v + 60))}
                   className="p-3 rounded-full bg-white text-[#0037ae] shadow-lg hover:bg-white/90"

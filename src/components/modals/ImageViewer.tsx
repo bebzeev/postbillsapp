@@ -136,17 +136,17 @@ export function ImageViewer({
               delay: 0.1,
               ease: [0.16, 1, 0.3, 1],
             }}
-            className="w-full max-w-2xl p-4 rounded-lg bg-white shadow-xl"
+            className="w-full max-w-2xl p-4 rounded-lg bg-[#0037ae] shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <label className="block text-sm font-medium text-neutral-700 mb-2">
+            <label className="block text-sm font-medium text-white mb-2">
               Notes
             </label>
             <textarea
               value={viewer.note || ''}
               onChange={(e) => onUpdateNote(e.target.value)}
               placeholder="Add notes about this image..."
-              className="w-full px-3 py-2 rounded-lg border border-neutral-200 bg-neutral-50 focus:bg-white outline-none min-h-[100px] resize-y"
+              className="w-full px-3 py-2 rounded-lg border border-white/30 bg-transparent outline-none min-h-[100px] resize-y text-white placeholder:text-white/50"
             />
           </motion.div>
         )}

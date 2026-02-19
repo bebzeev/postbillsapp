@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Droppable } from '@hello-pangea/dnd';
 import { DESIGN } from '../constants/design';
-import { fmtDOW, fmtDOWShort, fmtMD } from '../utils/date';
+import { fmtDOWShort, fmtMD } from '../utils/date';
 import { ImageCard } from './ImageCard';
 import { ColumnAddBar, Placeholder } from './ui';
 import type { ImageItem, ExternalHover } from '../types';
@@ -18,8 +18,8 @@ interface DayColumnProps {
   fileOver: string | null;
   externalHover: ExternalHover;
   showFavOnly: boolean;
-  isExpanded?: boolean;
-  onToggleExpand?: (dayKey: string) => void;
+  expandLevel?: number; // 0 = normal, 1 = 2 columns, 2 = 3 columns
+  onSetExpandLevel?: (dayKey: string, level: number) => void;
   onExtOver: (e: React.DragEvent, dayKey: string) => void;
   onExtLeave: (e: React.DragEvent, dayKey: string) => void;
   onExtDrop: (e: React.DragEvent, dayKey: string) => void;
@@ -45,8 +45,8 @@ export function DayColumn({
   fileOver,
   externalHover,
   showFavOnly,
-  isExpanded = false,
-  onToggleExpand,
+  expandLevel = 0,
+  onSetExpandLevel,
   onExtOver,
   onExtLeave,
   onExtDrop,
@@ -61,35 +61,74 @@ export function DayColumn({
 }: DayColumnProps) {
   const phIdx = externalHover.dayKey === dayKey ? externalHover.index : -1;
   const render = showFavOnly ? items.filter((x) => !!x.fav) : items;
+  const isExpanded = expandLevel > 0;
 
   // Long-press state
-  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+  const longPressTimer1 = useRef<NodeJS.Timeout | null>(null);
+  const longPressTimer2 = useRef<NodeJS.Timeout | null>(null);
   const [isLongPressing, setIsLongPressing] = useState(false);
+  const currentLevelRef = useRef(expandLevel);
+  currentLevelRef.current = expandLevel;
+
+  const triggerHaptic = () => {
+    if ('vibrate' in navigator) {
+      try {
+        navigator.vibrate(15);
+      } catch {}
+    }
+  };
 
   const handleTouchStart = (e: React.TouchEvent) => {
-    if (!isTouch || !onToggleExpand) return;
+    if (!isTouch || !onSetExpandLevel) return;
 
     setIsLongPressing(true);
-    const duration = isExpanded ? 1000 : 1500; // 1s to collapse, 1.5s to expand
 
-    longPressTimer.current = setTimeout(() => {
-      onToggleExpand(dayKey);
+    // 1 second: expand to level 1 (2 columns) or collapse if already expanded
+    longPressTimer1.current = setTimeout(() => {
+      const current = currentLevelRef.current;
+      if (current === 0) {
+        // Expand to level 1
+        triggerHaptic();
+        onSetExpandLevel(dayKey, 1);
+      } else {
+        // Collapse back to normal
+        triggerHaptic();
+        onSetExpandLevel(dayKey, 0);
+        setIsLongPressing(false);
+      }
+    }, 1000);
+
+    // 2 seconds: expand to level 2 (3 columns) - only if starting from 0
+    longPressTimer2.current = setTimeout(() => {
+      const current = currentLevelRef.current;
+      if (current === 1) {
+        // Expand to level 2
+        triggerHaptic();
+        onSetExpandLevel(dayKey, 2);
+      }
       setIsLongPressing(false);
-    }, duration);
+    }, 2000);
   };
 
   const handleTouchEnd = () => {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
+    if (longPressTimer1.current) {
+      clearTimeout(longPressTimer1.current);
+      longPressTimer1.current = null;
+    }
+    if (longPressTimer2.current) {
+      clearTimeout(longPressTimer2.current);
+      longPressTimer2.current = null;
     }
     setIsLongPressing(false);
   };
 
   useEffect(() => {
     return () => {
-      if (longPressTimer.current) {
-        clearTimeout(longPressTimer.current);
+      if (longPressTimer1.current) {
+        clearTimeout(longPressTimer1.current);
+      }
+      if (longPressTimer2.current) {
+        clearTimeout(longPressTimer2.current);
       }
     };
   }, []);
@@ -107,8 +146,8 @@ export function DayColumn({
           onDragLeave={(e) => onExtLeave(e, dayKey)}
           onDrop={(e) => onExtDrop(e, dayKey)}
           style={{
-            minWidth: isExpanded ? '100vw' : width,
-            width: isExpanded ? '100vw' : width,
+            minWidth: expandLevel === 2 ? '100vw' : expandLevel === 1 ? width * 2 + 8 : width,
+            width: expandLevel === 2 ? '100vw' : expandLevel === 1 ? width * 2 + 8 : width,
             touchAction: isDragging ? 'none' : 'auto',
             overscrollBehaviorY: 'none',
             transition: 'width 0.4s cubic-bezier(0.16, 1, 0.3, 1), min-width 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
@@ -157,7 +196,7 @@ export function DayColumn({
                     fontSize: '18px',
                   }}
                 >
-                  {fmtDOW(date).toUpperCase()}
+                  {fmtDOWShort(date)}
                 </div>
                 <div
                   className="uppercase tracking-[0.2488px] leading-[19.5px]"
@@ -217,7 +256,7 @@ export function DayColumn({
               style={{
                 touchAction: isDragging ? 'none' : 'auto',
                 ...(isExpanded ? {
-                  columnCount: 3,
+                  columnCount: expandLevel === 2 ? 3 : 2,
                   columnGap: '10px',
                 } : {}),
               }}

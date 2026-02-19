@@ -2,6 +2,8 @@ export interface ImageItem {
   id: string;
   name: string;
   dataUrl: string;
+  /** Original Firebase Storage HTTPS URL (for notification attachments) */
+  imageURL?: string;
   fav: boolean;
   note: string;
   _order?: number;
