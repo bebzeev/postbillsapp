@@ -7,7 +7,39 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        // Set the root view and webview background to match the app's blue,
+        // so iOS safe-area insets (status bar, home indicator) show blue instead of white.
+        let blue = UIColor(red: 0.0, green: 0.216, blue: 0.682, alpha: 1.0) // #0037ae
+
+        DispatchQueue.main.async { [weak self] in
+            guard let window = self?.window else { return }
+            window.backgroundColor = blue
+
+            if let rootVC = window.rootViewController {
+                rootVC.view.backgroundColor = blue
+
+                // Find the WKWebView inside the Capacitor view hierarchy
+                func findWebView(in view: UIView) -> UIView? {
+                    if NSStringFromClass(type(of: view)).contains("WKWebView") {
+                        return view
+                    }
+                    for sub in view.subviews {
+                        if let found = findWebView(in: sub) { return found }
+                    }
+                    return nil
+                }
+
+                if let webView = findWebView(in: rootVC.view) {
+                    webView.backgroundColor = blue
+                    webView.isOpaque = false
+                    // The scroll view behind the web content
+                    if let scrollView = webView.subviews.first(where: { $0 is UIScrollView }) as? UIScrollView {
+                        scrollView.backgroundColor = blue
+                    }
+                }
+            }
+        }
+
         return true
     }
 
