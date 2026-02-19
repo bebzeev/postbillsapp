@@ -339,20 +339,34 @@ export default function PostBills() {
         // Background: fetch and cache images that aren't cached yet
         if (navigator.onLine) {
           const uncachedItems = allItems.filter((item) => !cachedImages.has(item.id));
+          if (uncachedItems.length > 0) {
+            console.log(`[image-cache] caching ${uncachedItems.length} uncached images`);
+          }
           for (const item of uncachedItems) {
-            fetch(item.imageURL)
-              .then((res) => res.blob())
-              .then((blob) => {
+            try {
+              const res = await fetch(item.imageURL);
+              const blob = await res.blob();
+              const dataUrl = await new Promise<string>((resolve) => {
                 const reader = new FileReader();
-                reader.onloadend = () => {
-                  const dataUrl = reader.result as string;
-                  if (dataUrl) {
-                    cacheImage(item.id, dataUrl).catch(() => {});
-                  }
-                };
+                reader.onloadend = () => resolve(reader.result as string);
                 reader.readAsDataURL(blob);
-              })
-              .catch(() => {});
+              });
+              if (dataUrl) {
+                await cacheImage(item.id, dataUrl);
+                // Update in-memory board state so the image shows immediately
+                setBoard((prev) => {
+                  const updated = { ...prev };
+                  for (const dk in updated) {
+                    updated[dk] = updated[dk].map((it) =>
+                      it.id === item.id ? { ...it, dataUrl } : it
+                    );
+                  }
+                  return updated;
+                });
+              }
+            } catch (err) {
+              console.warn(`[image-cache] failed to cache ${item.id}:`, err);
+            }
           }
         }
       },
