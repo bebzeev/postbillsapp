@@ -35,12 +35,9 @@ function notifId(itemId: string, type: 'advance' | 'day'): number {
   return hashToInt(`${itemId}_${type}`);
 }
 
-function formatDate(date: Date): string {
-  return date.toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-  });
+/** Short date like "2/19" */
+function shortDate(date: Date): string {
+  return `${date.getMonth() + 1}/${date.getDate()}`;
 }
 
 /** YYYY-MM-DD for the local date */
@@ -114,8 +111,7 @@ export async function scheduleEventNotifications(
       const eventDate = new Date(dayKey + 'T00:00:00');
       if (isNaN(eventDate.getTime())) continue;
 
-      const label = item.name || 'Event';
-      const dateStr = formatDate(eventDate);
+      const date = shortDate(eventDate);
       const imgUrl = attachmentUrl(item.dataUrl);
       const attach = imgUrl
         ? [{ id: `img_${item.id}`, url: imgUrl }]
@@ -129,8 +125,8 @@ export async function scheduleEventNotifications(
       if (advanceDate > now) {
         notifications.push({
           id: notifId(item.id, 'advance'),
-          title: `${label} in ${ADVANCE_DAYS} days`,
-          body: `Your favorited event is coming up on ${dateStr}`,
+          title: `Reminder! Your starred event is coming up on ${date}`,
+          body: '',
           schedule: { at: advanceDate },
           extra: { slug, dayKey, itemId: item.id },
           attachments: attach,
@@ -142,8 +138,8 @@ export async function scheduleEventNotifications(
         // Event is TODAY — fire immediately (5 seconds from now so iOS accepts it)
         notifications.push({
           id: notifId(item.id, 'day'),
-          title: `${label} is today!`,
-          body: `Your favorited event is happening today, ${dateStr}`,
+          title: `Reminder! Your starred event is today, ${date}`,
+          body: '',
           schedule: { at: new Date(Date.now() + 5_000) },
           extra: { slug, dayKey, itemId: item.id },
           attachments: attach,
@@ -156,8 +152,8 @@ export async function scheduleEventNotifications(
         if (dayOf > now) {
           notifications.push({
             id: notifId(item.id, 'day'),
-            title: `${label} is today!`,
-            body: `Your favorited event is happening today, ${dateStr}`,
+            title: `Reminder! Your starred event is today, ${date}`,
+            body: '',
             schedule: { at: dayOf },
             extra: { slug, dayKey, itemId: item.id },
             attachments: attach,
