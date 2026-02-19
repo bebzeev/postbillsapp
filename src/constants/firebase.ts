@@ -1,5 +1,9 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
+import {
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+} from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
 export const FIREBASE_CONFIG = {
@@ -12,13 +16,18 @@ export const FIREBASE_CONFIG = {
 };
 
 let app: ReturnType<typeof initializeApp> | undefined,
-  db: ReturnType<typeof getFirestore> | undefined,
+  db: ReturnType<typeof initializeFirestore> | undefined,
   storage: ReturnType<typeof getStorage> | undefined,
   firebaseReady = false;
 
 try {
   app = initializeApp(FIREBASE_CONFIG);
-  db = getFirestore(app);
+  // Enable IndexedDB persistence so Firestore works offline after force-quit
+  db = initializeFirestore(app, {
+    localCache: persistentLocalCache({
+      tabManager: persistentMultipleTabManager(),
+    }),
+  });
   storage = getStorage(app, `gs://${FIREBASE_CONFIG.storageBucket}`);
   firebaseReady = true;
 } catch {

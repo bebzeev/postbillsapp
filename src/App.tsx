@@ -25,7 +25,7 @@ import { fileToDataUrlCompressed } from './utils/file';
 import { uid, isTouch as getIsTouch } from './utils/helpers';
 import { useColW } from './hooks';
 import { scheduleEventNotifications, requestNotificationPermission } from './notifications';
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, CapacitorHttp } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { Header, DayColumn, GapSeparator } from './components';
 import {
@@ -307,6 +307,14 @@ export default function PostBills() {
             allItems.push({ id: it.id, imageURL: it.imageURL });
           }
         });
+
+        // If Firestore returns empty but we already have cached data, skip
+        // (this happens offline when Firestore has no persistence enabled)
+        if (allItems.length === 0 && dataLoaded) {
+          console.log('[firestore] empty snapshot ignored — using cached board data');
+          return;
+        }
+
         for (const k in by)
           by[k].sort((a, b) => (a._order ?? 0) - (b._order ?? 0));
 
@@ -344,13 +352,26 @@ export default function PostBills() {
           }
           for (const item of uncachedItems) {
             try {
-              const res = await fetch(item.imageURL);
-              const blob = await res.blob();
-              const dataUrl = await new Promise<string>((resolve) => {
-                const reader = new FileReader();
-                reader.onloadend = () => resolve(reader.result as string);
-                reader.readAsDataURL(blob);
-              });
+              let dataUrl: string;
+              if (Capacitor.isNativePlatform()) {
+                // Use native HTTP to bypass WKWebView CORS restrictions
+                const resp = await CapacitorHttp.get({
+                  url: item.imageURL,
+                  responseType: 'blob',
+                });
+                // CapacitorHttp returns blob responses as base64 string
+                const contentType = resp.headers?.['Content-Type'] || resp.headers?.['content-type'] || 'image/jpeg';
+                dataUrl = `data:${contentType};base64,${resp.data}`;
+              } else {
+                // Web: use regular fetch
+                const res = await fetch(item.imageURL);
+                const blob = await res.blob();
+                dataUrl = await new Promise<string>((resolve) => {
+                  const reader = new FileReader();
+                  reader.onloadend = () => resolve(reader.result as string);
+                  reader.readAsDataURL(blob);
+                });
+              }
               if (dataUrl) {
                 await cacheImage(item.id, dataUrl);
                 // Update in-memory board state so the image shows immediately
@@ -363,6 +384,7 @@ export default function PostBills() {
                   }
                   return updated;
                 });
+                console.log(`[image-cache] cached ${item.id}`);
               }
             } catch (err) {
               console.warn(`[image-cache] failed to cache ${item.id}:`, err);
