@@ -298,6 +298,7 @@ export default function PostBills() {
             id: it.id,
             name: it.name,
             dataUrl: it.imageURL,
+            imageURL: it.imageURL || '',
             fav: !!it.fav,
             note: it.note || '',
             _order: it.order,

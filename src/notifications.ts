@@ -86,10 +86,11 @@ export async function scheduleEventNotifications(
   const hasPermission = await requestNotificationPermission();
   if (!hasPermission) return;
 
-  // Cancel existing scheduled notifications
+  // Cancel ALL existing scheduled notifications before rescheduling
   const pending = await LocalNotifications.getPending();
   if (pending.notifications.length > 0) {
     await LocalNotifications.cancel({ notifications: pending.notifications });
+    console.log(`[notifications] cancelled ${pending.notifications.length} pending`);
   }
 
   const now = new Date();
@@ -112,7 +113,7 @@ export async function scheduleEventNotifications(
       if (isNaN(eventDate.getTime())) continue;
 
       const date = shortDate(eventDate);
-      const imgUrl = attachmentUrl(item.dataUrl);
+      const imgUrl = attachmentUrl(item.imageURL);
       const attach = imgUrl
         ? [{ id: `img_${item.id}`, url: imgUrl }]
         : undefined;
@@ -171,5 +172,7 @@ export async function scheduleEventNotifications(
   );
   const capped = notifications.slice(0, IOS_NOTIFICATION_LIMIT);
 
+  console.log(`[notifications] scheduling ${capped.length} notifications`,
+    capped.map(n => ({ id: n.id, title: n.title, at: n.schedule.at.toISOString(), hasAttachment: !!n.attachments })));
   await LocalNotifications.schedule({ notifications: capped });
 }

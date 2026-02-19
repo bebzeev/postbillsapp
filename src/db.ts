@@ -13,6 +13,7 @@ export interface ImageItem {
   id: string;
   name: string;
   dataUrl: string;
+  imageURL?: string;
   fav: boolean;
   note: string;
   _order?: number;
