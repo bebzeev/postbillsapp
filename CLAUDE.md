@@ -76,24 +76,19 @@ boards/{slug}
 - Design tokens in `src/constants/design.ts` (DESIGN.colors, DESIGN.fonts)
 - lucide-react for icons, custom SVG icons in `src/icons/`
 
-## iOS / Capacitor Troubleshooting
+## iOS / Capacitor Quick Reference
 
-### WKWebView CORS and fetch()
-- `fetch()` from WKWebView to Firebase Storage URLs is blocked by CORS
-- **Do NOT use `CapacitorHttp: { enabled: true }`** (global fetch patch) — it breaks Firebase/Firestore SDK and has blob handling bugs (see [#6534](https://github.com/ionic-team/capacitor/issues/6534), [#6126](https://github.com/ionic-team/capacitor/issues/6126))
-- **Instead**, use `CapacitorHttp.get()` direct API from `@capacitor/core` for specific requests that need to bypass CORS (e.g., image downloads). This leaves Firebase's own fetch() untouched
-- On web, use regular `fetch()` as normal
+Detailed troubleshooting logs (what was tried, what failed, and why) are in the `docs/` folder. **Always check these before debugging similar issues:**
 
-### Firestore Offline Persistence
-- `getFirestore(app)` only gives memory cache — data lost on force-quit
-- Must use `initializeFirestore(app, { localCache: persistentLocalCache(...) })` for IndexedDB persistence
-- With persistence enabled, `onSnapshot` fires from local cache even offline after force-quit
-- Guard against empty snapshots overwriting cached board data when offline
+- **[docs/troubleshooting-ios-offline-and-caching.md](docs/troubleshooting-ios-offline-and-caching.md)** — WKWebView CORS, Firestore offline persistence, notification image attachments
+- **[docs/troubleshooting-ios-pwa-bottom-gap.md](docs/troubleshooting-ios-pwa-bottom-gap.md)** — iOS PWA standalone mode bottom gap (5 failed attempts + final fix)
 
-### iOS Notification Attachments
-- iOS notification attachments require local `file://` URIs, not HTTPS URLs or `data:` URIs
-- Use `@capacitor/filesystem` to write base64 data to a local cache file, then use the file URI
-- Base64 data from IndexedDB image cache (already in memory) avoids network fetch issues
+### Key Rules
+- **Do NOT use `CapacitorHttp: { enabled: true }`** — breaks Firebase/Firestore SDK. Use `CapacitorHttp.get()` direct API for CORS bypass instead.
+- **Use `initializeFirestore()` with `persistentLocalCache`** — `getFirestore()` only gives memory cache (lost on force-quit).
+- **iOS notification attachments need local `file://` URIs** — not HTTPS or `data:` URIs. Use `@capacitor/filesystem` to write to cache.
+- **iOS PWA bottom gap** — caused by `black-translucent` status bar shifting content up. Fix with `body { min-height: calc(100% + env(safe-area-inset-top, 0px)); }` — never on the fixed-position elements.
+- **Avoid `100dvh` / `100vh` / `window.innerHeight` for layout** in iOS standalone PWA mode — use flexbox (`flex: 1`) instead.
 
 ### iOS Safe Area / Status Bar
 - Set WKWebView and root view background color in `AppDelegate.swift` to match app blue (#0037ae) — prevents white strips in safe area
