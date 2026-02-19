@@ -336,12 +336,6 @@ export default function PostBills() {
         for (const d of days) newBoard[fmtKey(d)] = by[fmtKey(d)] || [];
 
         setBoard(newBoard);
-
-        // Save to IndexedDB for offline access (with cached base64 URLs)
-        saveBoard(slug, newBoard).catch((err) => {
-          console.warn('Failed to save board to IndexedDB:', err);
-        });
-
         setDataLoaded(true);
 
         // Background: fetch and cache images that aren't cached yet
@@ -396,6 +390,20 @@ export default function PostBills() {
     );
     return () => unsub();
   }, [slug, days]);
+
+  // Persist board to IndexedDB on every change (debounced)
+  // This ensures offline adds, deletes, reorders, etc. survive force-quit
+  useEffect(() => {
+    if (!slug || !dataLoaded) return;
+
+    const timer = setTimeout(() => {
+      saveBoard(slug, board).catch((err) => {
+        console.warn('Failed to save board to IndexedDB:', err);
+      });
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [board, slug, dataLoaded]);
 
   // Schedule local notifications for favorited events (iOS only)
   useEffect(() => {

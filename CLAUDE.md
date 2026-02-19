@@ -75,3 +75,32 @@ boards/{slug}
 - Tailwind classes used directly in components
 - Design tokens in `src/constants/design.ts` (DESIGN.colors, DESIGN.fonts)
 - lucide-react for icons, custom SVG icons in `src/icons/`
+
+## iOS / Capacitor Troubleshooting
+
+### WKWebView CORS and fetch()
+- `fetch()` from WKWebView to Firebase Storage URLs is blocked by CORS
+- **Do NOT use `CapacitorHttp: { enabled: true }`** (global fetch patch) — it breaks Firebase/Firestore SDK and has blob handling bugs (see [#6534](https://github.com/ionic-team/capacitor/issues/6534), [#6126](https://github.com/ionic-team/capacitor/issues/6126))
+- **Instead**, use `CapacitorHttp.get()` direct API from `@capacitor/core` for specific requests that need to bypass CORS (e.g., image downloads). This leaves Firebase's own fetch() untouched
+- On web, use regular `fetch()` as normal
+
+### Firestore Offline Persistence
+- `getFirestore(app)` only gives memory cache — data lost on force-quit
+- Must use `initializeFirestore(app, { localCache: persistentLocalCache(...) })` for IndexedDB persistence
+- With persistence enabled, `onSnapshot` fires from local cache even offline after force-quit
+- Guard against empty snapshots overwriting cached board data when offline
+
+### iOS Notification Attachments
+- iOS notification attachments require local `file://` URIs, not HTTPS URLs or `data:` URIs
+- Use `@capacitor/filesystem` to write base64 data to a local cache file, then use the file URI
+- Base64 data from IndexedDB image cache (already in memory) avoids network fetch issues
+
+### iOS Safe Area / Status Bar
+- Set WKWebView and root view background color in `AppDelegate.swift` to match app blue (#0037ae) — prevents white strips in safe area
+- Subclass `CAPBridgeViewController` as `LightStatusBarViewController` with `preferredStatusBarStyle = .lightContent` for white status bar text
+- Reference the subclass in `Main.storyboard` with `customModule="App"`
+
+### Build & Deploy
+- After any config or plugin change: `npm run build && npx cap sync ios`
+- Always clean build in Xcode after Capacitor changes (Product → Clean Build Folder → Run)
+- `npx cap sync ios` copies web assets AND updates native plugin config
