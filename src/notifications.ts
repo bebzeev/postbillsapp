@@ -4,8 +4,9 @@
  * based on the dayKey (YYYY-MM-DD) each event is filed under.
  *
  * Two notifications per favorited future event:
- *   - 7 days before at 10:00 AM local time
- *   - Day-of at 9:00 AM local time
+ *   - 5 days before at 10:00 AM local time
+ *   - Day-of at 9:00 AM local time (or immediately if the event is today
+ *     and 9 AM has already passed)
  */
 
 import { Capacitor } from '@capacitor/core';
@@ -14,6 +15,9 @@ import type { Board } from './types';
 
 /** Max scheduled notifications iOS allows */
 const IOS_NOTIFICATION_LIMIT = 64;
+
+/** Days in advance for the early reminder */
+const ADVANCE_DAYS = 5;
 
 /**
  * Deterministic 32-bit integer hash from a string.
@@ -27,7 +31,7 @@ function hashToInt(str: string): number {
   return Math.abs(h);
 }
 
-function notifId(itemId: string, type: 'week' | 'day'): number {
+function notifId(itemId: string, type: 'advance' | 'day'): number {
   return hashToInt(`${itemId}_${type}`);
 }
 
@@ -37,6 +41,15 @@ function formatDate(date: Date): string {
     month: 'long',
     day: 'numeric',
   });
+}
+
+/** YYYY-MM-DD for the local date */
+function todayKey(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 /**
@@ -83,6 +96,7 @@ export async function scheduleEventNotifications(
   }
 
   const now = new Date();
+  const today = todayKey();
   const notifications: {
     id: number;
     title: string;
@@ -107,35 +121,48 @@ export async function scheduleEventNotifications(
         ? [{ id: `img_${item.id}`, url: imgUrl }]
         : undefined;
 
-      // 7 days before at 10:00 AM
-      const weekBefore = new Date(eventDate);
-      weekBefore.setDate(weekBefore.getDate() - 7);
-      weekBefore.setHours(10, 0, 0, 0);
+      // 5 days before at 10:00 AM
+      const advanceDate = new Date(eventDate);
+      advanceDate.setDate(advanceDate.getDate() - ADVANCE_DAYS);
+      advanceDate.setHours(10, 0, 0, 0);
 
-      if (weekBefore > now) {
+      if (advanceDate > now) {
         notifications.push({
-          id: notifId(item.id, 'week'),
-          title: `${label} in 1 week`,
+          id: notifId(item.id, 'advance'),
+          title: `${label} in ${ADVANCE_DAYS} days`,
           body: `Your favorited event is coming up on ${dateStr}`,
-          schedule: { at: weekBefore },
+          schedule: { at: advanceDate },
           extra: { slug, dayKey, itemId: item.id },
           attachments: attach,
         });
       }
 
-      // Day-of at 9:00 AM
-      const dayOf = new Date(eventDate);
-      dayOf.setHours(9, 0, 0, 0);
-
-      if (dayOf > now) {
+      // Day-of notification
+      if (dayKey === today) {
+        // Event is TODAY — fire immediately (5 seconds from now so iOS accepts it)
         notifications.push({
           id: notifId(item.id, 'day'),
           title: `${label} is today!`,
           body: `Your favorited event is happening today, ${dateStr}`,
-          schedule: { at: dayOf },
+          schedule: { at: new Date(Date.now() + 5_000) },
           extra: { slug, dayKey, itemId: item.id },
           attachments: attach,
         });
+      } else {
+        // Future day — schedule for 9:00 AM that day
+        const dayOf = new Date(eventDate);
+        dayOf.setHours(9, 0, 0, 0);
+
+        if (dayOf > now) {
+          notifications.push({
+            id: notifId(item.id, 'day'),
+            title: `${label} is today!`,
+            body: `Your favorited event is happening today, ${dateStr}`,
+            schedule: { at: dayOf },
+            extra: { slug, dayKey, itemId: item.id },
+            attachments: attach,
+          });
+        }
       }
     }
   }

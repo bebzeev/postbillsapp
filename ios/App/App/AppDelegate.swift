@@ -1,6 +1,13 @@
 import UIKit
 import Capacitor
 
+// Force light (white) status bar text across the entire app
+class LightStatusBarViewController: CAPBridgeViewController {
+    override var preferredStatusBarStyle: UIStatusBarStyle {
+        return .lightContent
+    }
+}
+
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
 
@@ -17,6 +24,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
             if let rootVC = window.rootViewController {
                 rootVC.view.backgroundColor = blue
+                // Ensure the status bar style update is picked up
+                rootVC.setNeedsStatusBarAppearanceUpdate()
 
                 // Find the WKWebView inside the Capacitor view hierarchy
                 func findWebView(in view: UIView) -> UIView? {
