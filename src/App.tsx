@@ -1021,6 +1021,7 @@ export default function PostBills() {
       style={{
         backgroundColor: DESIGN.colors.mainBlue,
         fontFamily: DESIGN.fonts.body,
+        paddingBottom: 'env(safe-area-inset-bottom)',
       }}
     >
       {/* Header */}
@@ -1059,7 +1060,8 @@ export default function PostBills() {
         <div
           ref={scrollRef}
           style={{
-            height: `calc(100dvh - ${headerH}px)`,
+            flex: 1,
+            minHeight: 0,
             touchAction: isDragging ? 'none' : 'pan-x',
             overscrollBehaviorX: 'contain',
             overscrollBehaviorY: 'none',
