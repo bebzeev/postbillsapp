@@ -333,9 +333,23 @@ export default function PostBills() {
         }
 
         const newBoard: Board = {};
+        const firestoreIds = new Set(allItems.map((item) => item.id));
         for (const d of days) newBoard[fmtKey(d)] = by[fmtKey(d)] || [];
 
-        setBoard(newBoard);
+        // Preserve locally-added items that Firestore doesn't know about yet.
+        // These are items added offline that haven't been synced.
+        // They have dataUrl starting with "data:" (base64) and no imageURL.
+        setBoard((prevBoard) => {
+          for (const dk in prevBoard) {
+            for (const item of prevBoard[dk]) {
+              if (!firestoreIds.has(item.id) && item.dataUrl?.startsWith('data:')) {
+                if (!newBoard[dk]) newBoard[dk] = [];
+                newBoard[dk].push(item);
+              }
+            }
+          }
+          return newBoard;
+        });
         setDataLoaded(true);
 
         // Background: fetch and cache images that aren't cached yet
