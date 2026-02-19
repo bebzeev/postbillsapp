@@ -76,57 +76,24 @@ boards/{slug}
 - Design tokens in `src/constants/design.ts` (DESIGN.colors, DESIGN.fonts)
 - lucide-react for icons, custom SVG icons in `src/icons/`
 
-## iOS / Capacitor Troubleshooting
+## iOS / Capacitor Quick Reference
 
-### WKWebView CORS and fetch()
-- `fetch()` from WKWebView to Firebase Storage URLs is blocked by CORS
-- **Do NOT use `CapacitorHttp: { enabled: true }`** (global fetch patch) — it breaks Firebase/Firestore SDK and has blob handling bugs (see [#6534](https://github.com/ionic-team/capacitor/issues/6534), [#6126](https://github.com/ionic-team/capacitor/issues/6126))
-- **Instead**, use `CapacitorHttp.get()` direct API from `@capacitor/core` for specific requests that need to bypass CORS (e.g., image downloads). This leaves Firebase's own fetch() untouched
-- On web, use regular `fetch()` as normal
+Detailed troubleshooting logs (what was tried, what failed, and why) are in the `docs/` folder. **Always check these before debugging similar issues:**
 
-### Firestore Offline Persistence
-- `getFirestore(app)` only gives memory cache — data lost on force-quit
-- Must use `initializeFirestore(app, { localCache: persistentLocalCache(...) })` for IndexedDB persistence
-- With persistence enabled, `onSnapshot` fires from local cache even offline after force-quit
-- Guard against empty snapshots overwriting cached board data when offline
+- **[docs/troubleshooting-ios-offline-and-caching.md](docs/troubleshooting-ios-offline-and-caching.md)** — WKWebView CORS, Firestore offline persistence, notification image attachments
+- **[docs/troubleshooting-ios-pwa-bottom-gap.md](docs/troubleshooting-ios-pwa-bottom-gap.md)** — iOS PWA standalone mode bottom gap (5 failed attempts + final fix)
 
-### iOS Notification Attachments
-- iOS notification attachments require local `file://` URIs, not HTTPS URLs or `data:` URIs
-- Use `@capacitor/filesystem` to write base64 data to a local cache file, then use the file URI
-- Base64 data from IndexedDB image cache (already in memory) avoids network fetch issues
+### Key Rules
+- **Do NOT use `CapacitorHttp: { enabled: true }`** — breaks Firebase/Firestore SDK. Use `CapacitorHttp.get()` direct API for CORS bypass instead.
+- **Use `initializeFirestore()` with `persistentLocalCache`** — `getFirestore()` only gives memory cache (lost on force-quit).
+- **iOS notification attachments need local `file://` URIs** — not HTTPS or `data:` URIs. Use `@capacitor/filesystem` to write to cache.
+- **iOS PWA bottom gap** — caused by `black-translucent` status bar shifting content up. Fix with `body { min-height: calc(100% + env(safe-area-inset-top, 0px)); }` — never on the fixed-position elements.
+- **Avoid `100dvh` / `100vh` / `window.innerHeight` for layout** in iOS standalone PWA mode — use flexbox (`flex: 1`) instead.
 
 ### iOS Safe Area / Status Bar
 - Set WKWebView and root view background color in `AppDelegate.swift` to match app blue (#0037ae) — prevents white strips in safe area
 - Subclass `CAPBridgeViewController` as `LightStatusBarViewController` with `preferredStatusBarStyle = .lightContent` for white status bar text
 - Reference the subclass in `Main.storyboard` with `customModule="App"`
-
-### iOS PWA Standalone Mode — Bottom Gap Fix
-
-**Problem:** When running as a standalone PWA (Add to Home Screen) on iOS via Safari or Chrome, a visible gap appears at the bottom of the screen. The app's `position: fixed; inset: 0` container doesn't reach the screen bottom. This affects both the main app layout and any full-screen modal overlays.
-
-**Root cause:** The combination of `<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">` and `<meta name="viewport" content="viewport-fit=cover">` causes iOS to shift the entire web content **up** underneath the status bar so the app can render behind it. However, the viewport height (`100vh`, `100dvh`, `window.innerHeight`) does **not** grow to compensate for this upward shift. The result is that `position: fixed; bottom: 0` reaches the bottom of the *viewport*, which is now shorter than the actual screen by approximately `env(safe-area-inset-top)` pixels (~54px on Face ID iPhones).
-
-**What finally worked:**
-```css
-body {
-  min-height: calc(100% + env(safe-area-inset-top, 0px));
-}
-```
-This extends the document body downward to fill the gap at the bottom. Fixed-position elements then have a viewport that covers the full screen. Additionally, the scroll container was changed from `height: calc(100dvh - headerH)` to `flex: 1; minHeight: 0` to avoid depending on viewport units entirely.
-
-**What did NOT work (tried and failed):**
-
-1. **`paddingBottom: env(safe-area-inset-bottom)`** on the root container — Made the gap **worse** by pushing content UP instead of filling the gap. The safe-area-inset-bottom is for the home indicator, not the status bar shift.
-
-2. **CSS `-webkit-fill-available`** on html/body (`min-height: -webkit-fill-available; height: -webkit-fill-available`) — Did not fix the gap and in some cases conflicted with other height calculations.
-
-3. **JS-driven `--app-height` CSS variable** using `window.innerHeight` updated on resize — Did not work because `window.innerHeight` already reflects the shortened viewport, not the actual screen height. The gap exists below what JS thinks is the viewport.
-
-4. **Replacing `fixed inset-0` with `fixed top-0 left-0` + explicit `height: var(--app-height)`** on all components (root + every modal) — Same issue as #3; the JS-measured height is wrong.
-
-5. **`height: calc(100% + env(safe-area-inset-top))` on the fixed container itself** — Conflicts with `bottom: 0` constraint in fixed positioning. Setting both height and top/bottom creates over-constrained positioning.
-
-**Key takeaway:** The fix must be applied at the **document level** (`body` min-height), not on the fixed-position elements. The viewport itself is the problem, and the body height adjustment is what tells iOS to extend the renderable area down to fill the screen.
 
 ### Build & Deploy
 - After any config or plugin change: `npm run build && npx cap sync ios`
