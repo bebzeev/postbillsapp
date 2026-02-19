@@ -148,7 +148,11 @@ export async function scheduleEventNotifications(
       if (isNaN(eventDate.getTime())) continue;
 
       const date = shortDate(eventDate);
-      const imgURL = item.imageURL && item.imageURL.startsWith('https://') ? item.imageURL : undefined;
+      // Try imageURL first (Firestore field), fall back to dataUrl if it's HTTPS
+      const httpsUrl =
+        (item.imageURL && item.imageURL.startsWith('https://') ? item.imageURL : null) ||
+        (item.dataUrl && item.dataUrl.startsWith('https://') ? item.dataUrl : null) ||
+        undefined;
 
       // 5 days before at 10:00 AM
       const advanceDate = new Date(eventDate);
@@ -158,11 +162,11 @@ export async function scheduleEventNotifications(
       if (advanceDate > now) {
         pendingNotifs.push({
           id: notifId(item.id, 'advance'),
-          title: `Reminder! Your starred event is coming up on ${date}`,
-          body: '',
+          title: 'Reminder!',
+          body: `Your starred event is coming up on ${date}`,
           schedule: { at: advanceDate },
           extra: { slug, dayKey, itemId: item.id },
-          imageURL: imgURL,
+          imageURL: httpsUrl,
           itemId: item.id,
         });
       }
@@ -171,11 +175,11 @@ export async function scheduleEventNotifications(
       if (dayKey === today) {
         pendingNotifs.push({
           id: notifId(item.id, 'day'),
-          title: `Reminder! Your starred event is today, ${date}`,
-          body: '',
+          title: 'Reminder!',
+          body: `Your starred event is today, ${date}`,
           schedule: { at: new Date(Date.now() + 5_000) },
           extra: { slug, dayKey, itemId: item.id },
-          imageURL: imgURL,
+          imageURL: httpsUrl,
           itemId: item.id,
         });
       } else {
@@ -185,11 +189,11 @@ export async function scheduleEventNotifications(
         if (dayOf > now) {
           pendingNotifs.push({
             id: notifId(item.id, 'day'),
-            title: `Reminder! Your starred event is today, ${date}`,
-            body: '',
+            title: 'Reminder!',
+            body: `Your starred event is today, ${date}`,
             schedule: { at: dayOf },
             extra: { slug, dayKey, itemId: item.id },
-            imageURL: imgURL,
+            imageURL: httpsUrl,
             itemId: item.id,
           });
         }
