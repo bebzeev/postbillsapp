@@ -5,8 +5,7 @@
  *
  * Two notifications per favorited future event:
  *   - 5 days before at 10:00 AM local time
- *   - Day-of at 9:00 AM local time (or immediately if the event is today
- *     and 9 AM has already passed)
+ *   - Day-of at 9:00 AM local time (skipped if 9 AM has already passed)
  *
  * Images are written from the in-memory base64 data to a local temp file
  * because iOS notification attachments require local file:// URIs.
@@ -158,32 +157,20 @@ export async function scheduleEventNotifications(
         });
       }
 
-      // Day-of notification
-      if (dayKey === today) {
+      // Day-of notification at 9:00 AM (skip if 9 AM has already passed)
+      const dayOf = new Date(eventDate);
+      dayOf.setHours(9, 0, 0, 0);
+
+      if (dayOf > now) {
         pendingNotifs.push({
           id: notifId(item.id, 'day'),
           title: 'Reminder!',
           body: `Your starred event is today, ${date}`,
-          schedule: { at: new Date(Date.now() + 5_000) },
+          schedule: { at: dayOf },
           extra: { slug, dayKey, itemId: item.id },
           base64DataUrl: base64,
           itemId: item.id,
         });
-      } else {
-        const dayOf = new Date(eventDate);
-        dayOf.setHours(9, 0, 0, 0);
-
-        if (dayOf > now) {
-          pendingNotifs.push({
-            id: notifId(item.id, 'day'),
-            title: 'Reminder!',
-            body: `Your starred event is today, ${date}`,
-            schedule: { at: dayOf },
-            extra: { slug, dayKey, itemId: item.id },
-            base64DataUrl: base64,
-            itemId: item.id,
-          });
-        }
       }
     }
   }
