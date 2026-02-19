@@ -100,6 +100,34 @@ boards/{slug}
 - Subclass `CAPBridgeViewController` as `LightStatusBarViewController` with `preferredStatusBarStyle = .lightContent` for white status bar text
 - Reference the subclass in `Main.storyboard` with `customModule="App"`
 
+### iOS PWA Standalone Mode — Bottom Gap Fix
+
+**Problem:** When running as a standalone PWA (Add to Home Screen) on iOS via Safari or Chrome, a visible gap appears at the bottom of the screen. The app's `position: fixed; inset: 0` container doesn't reach the screen bottom. This affects both the main app layout and any full-screen modal overlays.
+
+**Root cause:** The combination of `<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">` and `<meta name="viewport" content="viewport-fit=cover">` causes iOS to shift the entire web content **up** underneath the status bar so the app can render behind it. However, the viewport height (`100vh`, `100dvh`, `window.innerHeight`) does **not** grow to compensate for this upward shift. The result is that `position: fixed; bottom: 0` reaches the bottom of the *viewport*, which is now shorter than the actual screen by approximately `env(safe-area-inset-top)` pixels (~54px on Face ID iPhones).
+
+**What finally worked:**
+```css
+body {
+  min-height: calc(100% + env(safe-area-inset-top, 0px));
+}
+```
+This extends the document body downward to fill the gap at the bottom. Fixed-position elements then have a viewport that covers the full screen. Additionally, the scroll container was changed from `height: calc(100dvh - headerH)` to `flex: 1; minHeight: 0` to avoid depending on viewport units entirely.
+
+**What did NOT work (tried and failed):**
+
+1. **`paddingBottom: env(safe-area-inset-bottom)`** on the root container — Made the gap **worse** by pushing content UP instead of filling the gap. The safe-area-inset-bottom is for the home indicator, not the status bar shift.
+
+2. **CSS `-webkit-fill-available`** on html/body (`min-height: -webkit-fill-available; height: -webkit-fill-available`) — Did not fix the gap and in some cases conflicted with other height calculations.
+
+3. **JS-driven `--app-height` CSS variable** using `window.innerHeight` updated on resize — Did not work because `window.innerHeight` already reflects the shortened viewport, not the actual screen height. The gap exists below what JS thinks is the viewport.
+
+4. **Replacing `fixed inset-0` with `fixed top-0 left-0` + explicit `height: var(--app-height)`** on all components (root + every modal) — Same issue as #3; the JS-measured height is wrong.
+
+5. **`height: calc(100% + env(safe-area-inset-top))` on the fixed container itself** — Conflicts with `bottom: 0` constraint in fixed positioning. Setting both height and top/bottom creates over-constrained positioning.
+
+**Key takeaway:** The fix must be applied at the **document level** (`body` min-height), not on the fixed-position elements. The viewport itself is the problem, and the body height adjustment is what tells iOS to extend the renderable area down to fill the screen.
+
 ### Build & Deploy
 - After any config or plugin change: `npm run build && npx cap sync ios`
 - Always clean build in Xcode after Capacitor changes (Product → Clean Build Folder → Run)
