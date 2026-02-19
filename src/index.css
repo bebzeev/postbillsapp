@@ -2,11 +2,34 @@
 @tailwind components;
 @tailwind utilities;
 
-html, body, #root {
+html {
   margin: 0;
   padding: 0;
   overflow: hidden;
   background-color: #0037ae;
+  /* In iOS standalone PWA with black-translucent, the viewport is
+     shifted up under the status bar. Use -webkit-fill-available to
+     ensure html covers the full screen including safe areas. */
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background-color: #0037ae;
+  /* Extend body height to cover the gap left at the bottom when
+     content is pushed up under the status bar */
+  height: 100%;
+  min-height: calc(100% + env(safe-area-inset-top, 0px));
+}
+
+#root {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background-color: #0037ae;
+  height: 100%;
 }
 
 /* Hide scrollbars */
