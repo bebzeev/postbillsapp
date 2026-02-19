@@ -8,8 +8,8 @@
  *   - Day-of at 9:00 AM local time (or immediately if the event is today
  *     and 9 AM has already passed)
  *
- * Images are downloaded to a local temp file because iOS notification
- * attachments require local file:// URIs, not remote HTTPS URLs.
+ * Images are written from the in-memory base64 data to a local temp file
+ * because iOS notification attachments require local file:// URIs.
  */
 
 import { Capacitor } from '@capacitor/core';
@@ -54,38 +54,27 @@ function todayKey(): string {
 }
 
 /**
- * Download a remote image to a local temp file and return the local URI.
- * Returns null if anything fails (network, write, etc).
+ * Write a base64 data URI to a local cache file and return the file URI.
+ * Returns null if the dataUrl isn't a valid base64 data URI or write fails.
  */
-async function downloadToLocal(url: string, filename: string): Promise<string | null> {
+async function saveBase64ToFile(dataUrl: string, filename: string): Promise<string | null> {
   try {
-    const response = await fetch(url);
-    const blob = await response.blob();
+    // Extract the raw base64 data from "data:image/jpeg;base64,/9j/4AAQ..."
+    const commaIdx = dataUrl.indexOf(',');
+    if (commaIdx < 0) return null;
+    const base64Data = dataUrl.substring(commaIdx + 1);
+    if (!base64Data) return null;
 
-    // Convert blob to base64
-    const base64 = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const result = reader.result as string;
-        // Strip the data:...;base64, prefix
-        const base64Data = result.split(',')[1];
-        resolve(base64Data);
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
-
-    // Write to Cache directory
     const result = await Filesystem.writeFile({
       path: `notif_images/${filename}`,
-      data: base64,
+      data: base64Data,
       directory: Directory.Cache,
       recursive: true,
     });
 
     return result.uri;
   } catch (err) {
-    console.warn(`[notifications] failed to download image for ${filename}:`, err);
+    console.warn(`[notifications] failed to save image for ${filename}:`, err);
     return null;
   }
 }
@@ -134,7 +123,8 @@ export async function scheduleEventNotifications(
     body: string;
     schedule: { at: Date };
     extra: Record<string, string>;
-    imageURL?: string;
+    /** base64 data URI from the board item (already in memory) */
+    base64DataUrl?: string;
     itemId: string;
   }
   const pendingNotifs: PendingNotif[] = [];
@@ -148,11 +138,8 @@ export async function scheduleEventNotifications(
       if (isNaN(eventDate.getTime())) continue;
 
       const date = shortDate(eventDate);
-      // Try imageURL first (Firestore field), fall back to dataUrl if it's HTTPS
-      const httpsUrl =
-        (item.imageURL && item.imageURL.startsWith('https://') ? item.imageURL : null) ||
-        (item.dataUrl && item.dataUrl.startsWith('https://') ? item.dataUrl : null) ||
-        undefined;
+      // Use the base64 data URI that's already loaded in memory
+      const base64 = item.dataUrl && item.dataUrl.startsWith('data:') ? item.dataUrl : undefined;
 
       // 5 days before at 10:00 AM
       const advanceDate = new Date(eventDate);
@@ -166,7 +153,7 @@ export async function scheduleEventNotifications(
           body: `Your starred event is coming up on ${date}`,
           schedule: { at: advanceDate },
           extra: { slug, dayKey, itemId: item.id },
-          imageURL: httpsUrl,
+          base64DataUrl: base64,
           itemId: item.id,
         });
       }
@@ -179,7 +166,7 @@ export async function scheduleEventNotifications(
           body: `Your starred event is today, ${date}`,
           schedule: { at: new Date(Date.now() + 5_000) },
           extra: { slug, dayKey, itemId: item.id },
-          imageURL: httpsUrl,
+          base64DataUrl: base64,
           itemId: item.id,
         });
       } else {
@@ -193,7 +180,7 @@ export async function scheduleEventNotifications(
             body: `Your starred event is today, ${date}`,
             schedule: { at: dayOf },
             extra: { slug, dayKey, itemId: item.id },
-            imageURL: httpsUrl,
+            base64DataUrl: base64,
             itemId: item.id,
           });
         }
@@ -209,7 +196,7 @@ export async function scheduleEventNotifications(
   );
   const capped = pendingNotifs.slice(0, IOS_NOTIFICATION_LIMIT);
 
-  // Download images to local files for notification attachments
+  // Write base64 images to local cache files for notification attachments
   const notifications: {
     id: number;
     title: string;
@@ -222,8 +209,8 @@ export async function scheduleEventNotifications(
   for (const n of capped) {
     let attachments: { id: string; url: string }[] | undefined;
 
-    if (n.imageURL) {
-      const localUri = await downloadToLocal(n.imageURL, `${n.itemId}.jpg`);
+    if (n.base64DataUrl) {
+      const localUri = await saveBase64ToFile(n.base64DataUrl, `${n.itemId}.jpg`);
       if (localUri) {
         attachments = [{ id: `img_${n.itemId}`, url: localUri }];
       }
